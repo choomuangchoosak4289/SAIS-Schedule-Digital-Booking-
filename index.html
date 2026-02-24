@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -165,7 +164,7 @@
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyL6Zf-NWw1M3kgbf5O9YmPmjuYTC7t9hHxj0eaGQC81fQYtZ72XsMEuufnK5maKmGH/exec"; 
         const ADMIN_USERNAME = "jiraphong2227";
 
-        // ฟังก์ชันแปลงวันที่ให้อิงตามเวลาท้องถิ่น (Local Time) (แก้ไขข้อ 2)
+                // ฟังก์ชันแปลงวันที่ให้อิงตามเวลาท้องถิ่น
         const getLocalDateString = (dateObj) => {
             const year = dateObj.getFullYear();
             const month = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -191,7 +190,10 @@
 
         const App = () => {
             const [db, setDb] = useState({ bookings: [], users: [], history: [], inspectors: [] });
-            const [user, setUser] = useState(JSON.parse(localStorage.getItem('sais_user')) || null);
+            
+            // แก้ไขข้อ 3: กำหนดค่าเริ่มต้นเป็น null เสมอ เพื่อให้เข้ามาใหม่เป็นบุคคลทั่วไปทุกครั้ง (Auto-logout on refresh)
+            const [user, setUser] = useState(null); 
+            
             const [loading, setLoading] = useState(false);
             const [modal, setModal] = useState(null); 
             const [showLogin, setShowLogin] = useState(false);
@@ -208,7 +210,6 @@
             useEffect(() => {
                 fetchData();
                 const timer = setInterval(() => {
-                    // ปรับเวลาเป็น 3 นาที (180,000 ms) เพื่อลดภาระเครื่อง (แก้ไขข้อ 4)
                     if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog) fetchData();
                 }, 180000); 
                 return () => clearInterval(timer);
@@ -248,7 +249,8 @@
                 }
             };
 
-            // ใช้ getLocalDateString เพื่อป้องกันปัญหา Timezone เหลื่อมวัน (แก้ไขข้อ 2)
+            const todayLocalString = getLocalDateString(new Date());
+
             const daysInView = useMemo(() => {
                 const year = currentDate.getFullYear();
                 const month = currentDate.getMonth();
@@ -256,8 +258,6 @@
                 const start = period === 0 ? 1 : 16;
                 const end = period === 0 ? 15 : lastDay;
                 const days = [];
-                
-                const todayLocalString = getLocalDateString(new Date());
 
                 for (let i = 0; i < 16; i++) {
                     const d = start + i;
@@ -280,15 +280,18 @@
                 return days;
             }, [currentDate, period, db.bookings]);
 
-            // Helper แปลงลิ้ง Google Maps เป็น Embed URL
+            // แก้ไขข้อ 4: อัปเกรดฟังก์ชันดึง Map ให้รองรับการแสดงผล iFrame ที่เสถียรขึ้น
             const getMapEmbedUrl = (link) => {
                 if (!link) return null;
                 try {
-                    if (link.includes('maps.app.goo.gl')) return null; 
+                    // หากมีพิกัด @lat,lng ให้ใช้พิกัดนั้นสร้าง iframe
                     const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
                     const match = link.match(regex);
-                    if (match) return `https://maps.google.com/maps?q=${match[1]},${match[2]}&hl=es;z=14&output=embed`;
-                    return null;
+                    if (match) {
+                        return `https://maps.google.com/maps?q=${match[1]},${match[2]}&hl=th&z=15&output=embed`;
+                    }
+                    // ถ้าเป็นลิ้งก์ทั่วไป ให้ใช้เทคนิค query string แปลงเป็น iframe
+                    return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=15&output=embed`;
                 } catch(e) { return null; }
             };
 
@@ -297,7 +300,6 @@
                 const fd = new FormData(e.target);
                 const data = Object.fromEntries(fd);
                 
-                // ตรวจสอบเลข Eq No ซ้ำในวันที่เลือก (ป้องกันการจองซ้ำ)
                 const isDup = db.bookings.some(b => 
                     b.date && b.date.split('T')[0] === modal.data.date && 
                     b.equipment_no === data.equipment_no && 
@@ -323,6 +325,7 @@
                 const ok = await apiAction(payload);
                 if(ok) { setModal(null); showToast('บันทึกสำเร็จ!', 'success'); }
             };
+
             return (
                 <div className="app-container">
                     {toast && <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl bg-white flex items-center gap-3 animate-pop font-bold text-sm">
@@ -334,7 +337,6 @@
                         <div className="flex items-center gap-2">
                             <button className="btn-icon" onClick={() => setShowManual(true)}><Icons.Book /></button>
                             <button className="btn-icon" onClick={() => setShowHistory(true)}><Icons.History /></button>
-                            <button className="btn-icon" onClick={() => alert('Exporting...')}><Icons.Camera /></button>
                             {user ? (
                                 <button className="ml-1 bg-white text-red-700 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2" onClick={() => { localStorage.removeItem('sais_user'); setUser(null); }}>{user.full_name.split(' ')[0]} <Icons.Login /></button>
                             ) : (
@@ -381,10 +383,18 @@
                                             return (
                                                 <div key={idx} className={`grid-cell ${isHoliday && !hasTask ? 'is-holiday-cell' : ''}`}
                                                     onClick={() => {
-                                                        if (hasTask) setModal({ type: 'detail', data: task });
-                                                        else {
+                                                        if (hasTask) {
+                                                            setModal({ type: 'detail', data: task });
+                                                        } else {
                                                             if (isHoliday && !isAdmin) return;
                                                             if (!user) { setShowLogin(true); return; }
+                                                            
+                                                            // แก้ไขข้อ 2: ดักจับการจองคิวงานย้อนหลัง
+                                                            if (d.full < todayLocalString && !isAdmin) {
+                                                                alert('ไม่สามารถจองคิวงานย้อนหลังได้ครับ');
+                                                                return;
+                                                            }
+                                                            
                                                             setModal({ type: 'booking', data: { date: d.full, inspector_name: ins.name } });
                                                         }
                                                     }}
@@ -416,7 +426,11 @@
                                 <div className="p-6 overflow-y-auto">
                                     <div className="mb-6 border-b pb-4 pr-10">
                                         <h3 className="text-xl font-bold text-slate-900">{modal.type === 'booking' ? 'จองคิวตรวจ' : 'รายละเอียด'}</h3>
-                                        <div className="text-xs text-red-600 font-bold uppercase mt-1">{modal.data.inspector_name} • {modal.data.date}</div>
+                                        
+                                        {/* แก้ไขข้อ 1: ตัดตัวอักษร T00:00:00.000Z ออกให้เหลือแค่วันที่สวยงาม */}
+                                        <div className="text-xs text-red-600 font-bold uppercase mt-1">
+                                            {modal.data.inspector_name} • {modal.data.date ? modal.data.date.split('T')[0] : ''}
+                                        </div>
                                     </div>
 
                                     {modal.type === 'booking' ? (
@@ -431,39 +445,38 @@
                                                 <div><label className="text-xs font-bold text-slate-500">Foreman</label><input name="foreman" defaultValue={modal.data.foreman} placeholder="ชื่อ" /></div>
                                                 <div><label className="text-xs font-bold text-slate-500">Tel</label><input name="tel" defaultValue={modal.data.tel} type="tel" placeholder="08x-xxx-xxxx" /></div>
                                             </div>
-                                            
-                                            {/* ปุ่มยืนยันพร้อมระบบกันกดซ้ำซ้อน (แก้ไขข้อ 5) */}
                                             <button 
                                                 disabled={loading}
                                                 className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all 
                                                     ${loading ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-red-600 text-white active:bg-red-700'}`}
                                             >
-                                                {loading 
-                                                    ? 'กำลังบันทึกข้อมูล...' 
-                                                    : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')
-                                                }
+                                                {loading ? 'กำลังบันทึกข้อมูล...' : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')}
                                             </button>
-
                                         </form>
                                     ) : (
                                         <div className="space-y-4">
-                                            <h2 className="text-xl font-bold text-slate-900">{modal.data.site_name}</h2>
+                                            {/* แสดงข้อมูลให้ตรงกับหัวข้อใน Google Sheets */}
+                                            <h2 className="text-xl font-bold text-slate-900">{modal.data.site_name || '-'}</h2>
                                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-y-4 text-sm">
-                                                <div><span className="text-xs text-slate-400 block font-bold">Eq No.</span><b>{modal.data.equipment_no}</b></div>
-                                                <div><span className="text-xs text-slate-400 block font-bold">Unit</span><b>{modal.data.unit_no}</b></div>
-                                                <div><span className="text-xs text-slate-400 block font-bold">Foreman</span><b>{modal.data.foreman}</b></div>
-                                                <div><span className="text-xs text-slate-400 block font-bold">Tel</span><a href={`tel:${modal.data.tel}`} className="text-blue-600 font-bold">{modal.data.tel}</a></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Eq No.</span><b>{modal.data.equipment_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Unit</span><b>{modal.data.unit_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Foreman</span><b>{modal.data.foreman || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Tel</span><a href={`tel:${modal.data.tel}`} className="text-blue-600 font-bold">{modal.data.tel || '-'}</a></div>
                                             </div>
                                             
+                                            {/* แก้ไขข้อ 4: แสดงแผนที่จำลองพร้อมปุ่มกดทะลุแอป */}
                                             {modal.data.map_link && (
                                                 <div>
-                                                    <span className="text-xs font-bold text-slate-500 uppercase">Location</span>
-                                                    <div className="map-preview">
+<span className="text-xs font-bold text-slate-500 uppercase">Location</span>
+                                                    <div className="map-preview relative mt-1 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200 group">
                                                         {getMapEmbedUrl(modal.data.map_link) ? (
-                                                            <iframe width="100%" height="100%" frameBorder="0" src={getMapEmbedUrl(modal.data.map_link)}></iframe>
+                                                            <>
+                                                                <iframe width="100%" height="100%" frameBorder="0" src={getMapEmbedUrl(modal.data.map_link)}></iframe>
+                                                                <button onClick={() => window.open(modal.data.map_link, '_blank')} className="absolute bottom-2 right-2 bg-white/90 backdrop-blur border px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-700 shadow-md hover:bg-white transition opacity-90 group-hover:opacity-100"><Icons.MapPin /> เปิดแอป</button>
+                                                            </>
                                                         ) : (
-                                                            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
-                                                                <button onClick={() => window.open(modal.data.map_link, '_blank')} className="bg-white border px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-600"><Icons.MapPin /> เปิด Google Maps</button>
+                                                            <div className="w-full h-full flex items-center justify-center py-8">
+                                                                <button onClick={() => window.open(modal.data.map_link, '_blank')} className="bg-white border px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-600 shadow-sm"><Icons.MapPin /> เปิด Google Maps</button>
                                                             </div>
                                                         )}
                                                     </div>
@@ -483,7 +496,6 @@
                         </div>
                     )}
 
-                    {/* แก้ไขข้อ 1: ลบรหัสผ่านก่อนบันทึกลง Local Storage เพื่อความปลอดภัย */}
                     {showLogin && <LoginComponent 
                         onClose={() => setShowLogin(false)} 
                         users={db.users} 
@@ -491,7 +503,7 @@
                             const safeUser = { ...u }; 
                             delete safeUser.password; 
                             setUser(safeUser); 
-                            localStorage.setItem('sais_user', JSON.stringify(safeUser)); 
+                            // ไม่บันทึกลง localStorage แล้ว เพื่อให้ผู้ใช้ใหม่เป็นแขกเสมอ
                             setShowLogin(false); 
                             showToast('ยินดีต้อนรับ', 'success'); 
                         }} 
@@ -509,17 +521,17 @@
                         <button onClick={onClose} className="btn-close-modern"><Icons.X /></button>
                         <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">{mode === 'signup' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}</h2>
                         {mode === 'login' ? (
-                            <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); const u = users.find(x => x.username === fd.get('username') && String(x.password) === fd.get('password')); if(u) onLogin(u); else alert('ผิดพลาด'); }} className="space-y-4">
+                            <form onSubmit={(e) => { e.preventDefault(); const fd = new FormData(e.target); const u = users.find(x => x.username === fd.get('username') && String(x.password) === fd.get('password')); if(u) onLogin(u); else alert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); }} className="space-y-4">
                                 <input name="username" placeholder="Username" className="bg-slate-50" />
                                 <input name="password" type="password" placeholder="Password" className="bg-slate-50" />
-                                <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg">LOGIN</button>
-                                <button type="button" onClick={()=>setMode('signup')} className="w-full text-center text-slate-500 text-sm mt-4 underline">สมัครสมาชิก</button>
+                                <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 transition">LOGIN</button>
+                                <button type="button" onClick={()=>setMode('signup')} className="w-full text-center text-slate-500 text-sm mt-4 underline hover:text-slate-800">สมัครสมาชิก</button>
                             </form>
                         ) : (
-                            <form onSubmit={async (e) => { e.preventDefault(); const fd = new FormData(e.target); const ok = await apiAction({ action:'signup', ...Object.fromEntries(fd) }); if(ok) setMode('login'); }} className="space-y-3">
+                            <form onSubmit={async (e) => { e.preventDefault(); const fd = new FormData(e.target); const ok = await apiAction({ action:'signup', ...Object.fromEntries(fd) }); if(ok) { alert('ส่งคำขอสมัครสมาชิกเรียบร้อย รอแอดมินอนุมัติครับ'); setMode('login'); } }} className="space-y-3">
                                 <input name="full_name" required placeholder="ชื่อ-นามสกุล" className="bg-slate-50" /><input name="email" required placeholder="Email (@schindler.com)" className="bg-slate-50" /><input name="username" required placeholder="Username" className="bg-slate-50" /><input name="password" required placeholder="Password" className="bg-slate-50" />
-                                <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg mt-2">ยืนยัน</button>
-                                <button type="button" onClick={()=>setMode('login')} className="w-full text-center text-slate-500 text-sm mt-2">กลับ</button>
+                                <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg mt-2 hover:bg-red-700 transition">ยืนยัน</button>
+                                <button type="button" onClick={()=>setMode('login')} className="w-full text-center text-slate-500 text-sm mt-2 hover:text-slate-800">กลับไปหน้าล็อกอิน</button>
                             </form>
                         )}
                     </div>
@@ -532,3 +544,4 @@
     </script>
 </body>
 </html>
+                                                    

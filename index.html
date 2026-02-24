@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -161,7 +162,7 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyL6Zf-NWw1M3kgbf5O9YmPmjuYTC7t9hHxj0eaGQC81fQYtZ72XsMEuufnK5maKmGH/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyy1zEiPMEAsfMmVqsKaV4PA9hnNes60O_WDwNaNvv__prf3WzCi9sp0yjTwq88NC9i/exec"; 
         const ADMIN_USERNAME = "jiraphong2227";
 
                 // ฟังก์ชันแปลงวันที่ให้อิงตามเวลาท้องถิ่น
@@ -467,6 +468,7 @@
                                             {/* แก้ไขข้อ 4: แสดงแผนที่จำลองพร้อมปุ่มกดทะลุแอป */}
                                             {modal.data.map_link && (
                                                 <div>
+                                                    
 <span className="text-xs font-bold text-slate-500 uppercase">Location</span>
                                                     <div className="map-preview relative mt-1 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200 group">
                                                         {getMapEmbedUrl(modal.data.map_link) ? (
@@ -544,4 +546,3 @@
     </script>
 </body>
 </html>
-                                                    

@@ -14,10 +14,13 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <style>
+        /* ตัวแปรสีและค่าพื้นฐาน */
         :root {
             --primary: #D0021B;
             --primary-dark: #990000;
@@ -47,6 +50,7 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        /* --- โครงสร้าง Layout หลัก --- */
         .app-container { 
             height: 100%; 
             display: flex; 
@@ -55,7 +59,6 @@
         }
 
         .main-header {
-            background: var(--primary); 
             color: white;
             padding-top: max(4px, var(--safe-top)); 
             padding-bottom: 4px;
@@ -68,21 +71,37 @@
             align-items: center; 
             justify-content: space-between;
             height: 45px; 
+            transition: background-color 0.3s ease;
         }
 
+        /* ปรับ Navbar ให้รองรับแถวปุ่มตัวกรอง (Filter) ด้านล่าง */
         .nav-bar {
             background: white; 
-            padding: 2px 12px;
+            padding: 4px 12px;
             border-bottom: 1px solid var(--border-color);
             display: flex; 
-            justify-content: space-between; 
-            align-items: center;
+            flex-direction: column;
+            gap: 6px;
             flex-shrink: 0; 
             z-index: 50;
-            height: 32px; 
             box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         }
 
+        .nav-bar-top {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            width: 100%;
+        }
+
+        .nav-bar-bottom {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+        }
+
+        /* --- ตารางปฏิทิน (Grid) --- */
         .grid-container { 
             flex-grow: 1; 
             display: flex; 
@@ -109,44 +128,23 @@
         }
 
         .sticky-corner {
-            position: sticky; 
-            top: 0; 
-            left: 0; 
-            z-index: 40;
-            background: #0f172a; 
-            color: white;
-            border-right: 1px solid #334155; 
-            border-bottom: 1px solid #334155;
-            display: flex; 
-            align-items: center; 
-            justify-content: center;
+            position: sticky; top: 0; left: 0; z-index: 40;
+            background: #0f172a; color: white;
+            border-right: 1px solid #334155; border-bottom: 1px solid #334155;
+            display: flex; align-items: center; justify-content: center;
         }
 
         .sticky-top {
-            position: sticky; 
-            top: 0; 
-            z-index: 30;
-            background: #1e293b; 
-            color: white;
-            border-right: 1px solid #334155; 
-            border-bottom: 1px solid #334155;
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
+            position: sticky; top: 0; z-index: 30;
+            background: #1e293b; color: white;
+            border-right: 1px solid #334155; border-bottom: 1px solid #334155;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
 
         .sticky-left {
-            position: sticky; 
-            left: 0; 
-            z-index: 20;
-            background: white; 
-            border-right: 2px solid #94a3b8;
-            border-bottom: 1px solid var(--border-color);
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center;
+            position: sticky; left: 0; z-index: 20;
+            background: white; border-right: 2px solid #94a3b8; border-bottom: 1px solid var(--border-color);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             box-shadow: 2px 0 5px rgba(0,0,0,0.05);
         }
 
@@ -160,7 +158,6 @@
             align-items: stretch; 
             justify-content: stretch;
         }
-
         .task-content {
             width: 100%; 
             height: 100%;
@@ -313,15 +310,59 @@
             margin-top: 10px; 
             border: 1px solid #e2e8f0; 
         }
+
+        /* --- Loading Screen เต็มจอ --- */
+        .loading-screen { 
+            position: fixed; 
+            inset: 0; 
+            background: rgba(255,255,255,0.95); 
+            z-index: 9999; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .spinner { 
+            width: 50px; 
+            height: 50px; 
+            border: 5px solid #f1f5f9; 
+            border-top: 5px solid var(--primary); 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            margin-bottom: 16px; 
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+
+        /* --- ปุ่มตัวกรอง (Filter Status) --- */
+        .filter-btn {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid #cbd5e1;
+            color: #64748b;
+            background: white;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .filter-btn.active {
+            background: #0f172a;
+            color: white;
+            border-color: #0f172a;
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
         
-        // อัปเดตลิงก์ใหม่ของคุณ
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyliEBL79vR4dgUB4GTkIkDbhHsPF1p7br8K-42_PsddRKOYNZOUx75Cmdk1Mn1GoR5/exec"; 
+        // SCRIPT_URL อันล่าสุดของคุณ
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXdkcrSJ7Ri-IfL92BMDIyQ7iXSfMYEdFbF9aGJclb5o9JAb0LmFGV0jNvFMzt_wBL/exec"; 
         const ADMIN_USERNAME = "jiraphong2227";
 
         const getLocalDateString = (dateObj) => {
@@ -343,9 +384,12 @@
             Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
             Alert: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
             Info: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
-            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+            Search: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+            Download: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         };
 
+        // ลิงก์ iframe Google Maps แก้ไขให้แสดงผลสถานที่จริงได้
         const getMapEmbedUrl = (link) => {
             if (!link) return null;
             try {
@@ -360,21 +404,32 @@
             }
         };
         const App = () => {
-            const [db, setDb] = useState({ bookings: [], users: [], history: [], inspectors: [] });
+            // ไม่โหลด users และ history มาเก็บไว้แบบสาธารณะอีกต่อไปเพื่อความปลอดภัย
+            const [db, setDb] = useState({ bookings: [], inspectors: [] }); 
             const [user, setUser] = useState(null); 
             const [loading, setLoading] = useState(false);
             const [modal, setModal] = useState(null); 
             const [showLogin, setShowLogin] = useState(false);
             const [showManual, setShowManual] = useState(false);
-            const [showHistory, setShowHistory] = useState(false);
             
-            // เพิ่ม State สำหรับ Custom Popup
+            // State สำหรับ History และระบบค้นหา
+            const [showHistory, setShowHistory] = useState(false);
+            const [myHistory, setMyHistory] = useState([]); 
+            const [searchQuery, setSearchQuery] = useState('');
+            
+            // State สำหรับ Custom Popup
             const [alertMsg, setAlertMsg] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState(null);
             const [toast, setToast] = useState(null);
+            const [showWelcomeModal, setShowWelcomeModal] = useState(false);
             
+            // State สำหรับปฏิทิน
             const [currentDate, setCurrentDate] = useState(new Date());
             const [period, setPeriod] = useState(0); 
+
+            // State ใหม่: Loading เต็มจอ และ ตัวกรองสถานะ
+            const [isInitialLoading, setIsInitialLoading] = useState(true);
+            const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'done'
 
             const scrollRef = useRef(null);
 
@@ -383,17 +438,7 @@
                 [user]
             );
 
-            useEffect(() => {
-                fetchData();
-                const timer = setInterval(() => {
-                    // หยุดดึงข้อมูลชั่วคราวถ้าเปิด Modal ทิ้งไว้อยู่
-                    if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog && !alertMsg) {
-                        fetchData();
-                    }
-                }, 180000); 
-                return () => clearInterval(timer);
-            }, [modal, showLogin, showManual, showHistory, confirmDialog, alertMsg]);
-
+            // ดึงข้อมูลตารางและผู้ตรวจ
             const fetchData = async () => {
                 if (!SCRIPT_URL) return;
                 try {
@@ -408,21 +453,34 @@
                     const data = await res.json();
                     setDb({
                         bookings: data.bookings || [],
-                        users: data.users || [],
-                        history: data.history || [],
                         inspectors: data.inspectors || []
                     });
                 } catch (e) {
                     console.error("Fetch Error:", e);
+                    setAlertMsg('ไม่สามารถดึงข้อมูลได้ โปรดลองรีเฟรชหน้าเว็บอีกครั้ง');
+                } finally {
+                    // โหลดข้อมูลเสร็จแล้ว ปิดหน้าจอโหลดเต็มจอ
+                    setIsInitialLoading(false);
                 }
             };
 
+            useEffect(() => {
+                fetchData();
+                const timer = setInterval(() => {
+                    if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog && !alertMsg && !showWelcomeModal) {
+                        fetchData();
+                    }
+                }, 180000); 
+                return () => clearInterval(timer);
+            }, [modal, showLogin, showManual, showHistory, confirmDialog, alertMsg, showWelcomeModal]);
+
+            // ฟังก์ชันกลางสำหรับการเชื่อมต่อ POST (Login, เพิ่ม, แก้ไข, ลบ)
             const apiAction = async (payload) => {
                 setLoading(true);
                 try {
                     const res = await fetch(SCRIPT_URL, { 
                         method: 'POST', 
-                        headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ใช้ text/plain เพื่อเลี่ยง CORS preflight ในบางกรณี
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify(payload) 
                     });
 
@@ -432,16 +490,18 @@
                     setLoading(false);
 
                     if (result.status === 'ok') { 
-                        await fetchData(); 
-                        return true; 
+                        // ถ้าไม่ใช่คำสั่ง Login หรือดึงประวัติ ให้รีเฟรชตารางใหม่
+                        if(payload.action !== 'login' && payload.action !== 'get_my_history') {
+                            await fetchData(); 
+                        }
+                        return result; 
                     } else { 
-                        // เปลี่ยนจาก alert() เป็น setAlertMsg()
                         setAlertMsg('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ')); 
                         return false; 
                     }
                 } catch (e) { 
                     setLoading(false); 
-                    setAlertMsg('การเชื่อมต่อขัดข้อง โปรดตรวจสอบว่าตั้งค่าการ Deploy เป็น "ทุกคน (Anyone)" แล้ว'); 
+                    setAlertMsg('การเชื่อมต่อขัดข้อง โปรดตรวจสอบอินเทอร์เน็ตหรือลิงก์ Apps Script'); 
                     return false; 
                 }
             };
@@ -449,6 +509,60 @@
             const showToast = (msg, type = 'success') => {
                 setToast({ msg, type });
                 setTimeout(() => setToast(null), 3000);
+            };
+
+            // ดึงประวัติแบบ Real-time เมื่อเปิดหน้า History เท่านั้น (เพิ่ม Performance และ Security)
+            useEffect(() => {
+                if (showHistory && user) {
+                    const fetchHistory = async () => {
+                        const res = await apiAction({ action: 'get_my_history', user: user.username });
+                        if (res && res.data) {
+                            setMyHistory(res.data);
+                        }
+                    };
+                    fetchHistory();
+                } else if (!showHistory) {
+                    setSearchQuery(''); // เคลียร์คำค้นหาเมื่อปิดหน้าต่างประวัติ
+                }
+            }, [showHistory, user]);
+            // ฟังก์ชัน Export ข้อมูลเป็น Excel (เฉพาะ Admin)
+            const exportToExcel = () => {
+                if (!isAdmin) {
+                    setAlertMsg('คุณไม่มีสิทธิ์ใช้งานฟีเจอร์นี้ (เฉพาะ Admin)');
+                    return;
+                }
+                
+                // ดึงเฉพาะข้อมูลของเดือน-ปี ที่กำลังเปิดดูอยู่
+                const targetYear = currentDate.getFullYear();
+                const targetMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const prefix = `${targetYear}-${targetMonth}`;
+                
+                const exportData = db.bookings
+                    .filter(b => b.date && b.date.startsWith(prefix) && b.inspector_name !== 'SYSTEM_HOLIDAY')
+                    .map(b => ({
+                        'วันที่': b.date.split('T')[0],
+                        'ผู้ตรวจสอบ': b.inspector_name,
+                        'ชื่อโครงการ': b.site_name,
+                        'Eq No.': b.equipment_no,
+                        'Unit': b.unit_no,
+                        'ผู้ควบคุมงาน': b.foreman,
+                        'เบอร์ติดต่อ': b.tel,
+                        'สถานะ': b.status === 'done' ? 'ตรวจสอบแล้ว' : 'รอดำเนินการ',
+                        'ผู้ทำรายการ': b.created_by
+                    }));
+
+                if (exportData.length === 0) {
+                    setAlertMsg('ไม่มีข้อมูลคิวงานในเดือนนี้สำหรับดาวน์โหลดครับ');
+                    return;
+                }
+
+                // สร้างและดาวน์โหลดไฟล์ Excel ผ่าน SheetJS
+                const worksheet = XLSX.utils.json_to_sheet(exportData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "SAIS_Bookings");
+                
+                const monthStr = currentDate.toLocaleDateString('th-TH', { month: 'short', year: 'numeric' });
+                XLSX.writeFile(workbook, `SAIS_Schedule_${monthStr}.xlsx`);
             };
 
             const changePeriod = (dir) => {
@@ -489,10 +603,7 @@
                         const localDateStr = getLocalDateString(date);
 
                         const isDbHoliday = db.bookings.some(
-                            b =>
-                                b.date &&
-                                b.date.split('T')[0] === localDateStr &&
-                                b.inspector_name === 'SYSTEM_HOLIDAY'
+                            b => b.date && b.date.split('T')[0] === localDateStr && b.inspector_name === 'SYSTEM_HOLIDAY'
                         );
 
                         days.push({
@@ -508,7 +619,6 @@
                         days.push({ isEmpty: true });
                     }
                 }
-
                 return days;
             }, [currentDate, period, db.bookings]);
 
@@ -546,14 +656,25 @@
                     user: user.username
                 };
 
-                const ok = await apiAction(payload);
-                if (ok) {
+                const res = await apiAction(payload);
+                if (res && res.status === 'ok') {
                     setModal(null);
                     showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกการจองสำเร็จ!', 'success');
                 }
             };
+
             return (
                 <div className="app-container">
+                    
+                    {/* UI หน้าจอโหลดข้อมูลแบบเต็มจอตอนเข้าเว็บครั้งแรก */}
+                    {isInitialLoading && (
+                        <div className="loading-screen">
+                            <div className="spinner"></div>
+                            <h2 className="text-slate-800 font-bold text-lg">กำลังซิงค์ข้อมูล...</h2>
+                            <p className="text-slate-500 text-sm mt-1">กรุณารอสักครู่ ระบบกำลังเชื่อมต่อฐานข้อมูล</p>
+                        </div>
+                    )}
+
                     {/* แจ้งเตือนแบบ Pop-up (Toast) */}
                     {toast && (
                         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl bg-white flex items-center gap-3 animate-pop font-bold text-sm">
@@ -561,8 +682,8 @@
                         </div>
                     )}
 
-                    {/* Header */}
-                    <header className="main-header">
+                    {/* Header: เปลี่ยนสีพื้นหลังตามสถานะการเข้าสู่ระบบ เพื่อความแตกต่าง */}
+                    <header className={`main-header ${user ? 'bg-slate-800' : 'bg-red-600'}`}>
                         <div className="flex items-center gap-2">
                             <h1 className="text-xl font-bold tracking-wide">SAIS BOOKING</h1>
                         </div>
@@ -575,14 +696,14 @@
                             </button>
                             {user ? (
                                 <button
-                                    className="ml-1 bg-white text-red-700 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2"
+                                    className="ml-1 bg-white text-slate-800 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:bg-slate-200 transition"
                                     onClick={() => setUser(null)}
                                 >
-                                    {(user.full_name || '').split(' ')[0]} <Icons.Login />
+                                    LOGOUT <Icons.Login />
                                 </button>
                             ) : (
                                 <button
-                                    className="ml-1 bg-white text-red-700 px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2"
+                                    className="ml-1 bg-white text-red-700 px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:bg-slate-100 transition"
                                     onClick={() => setShowLogin(true)}
                                 >
                                     LOGIN <Icons.User />
@@ -591,25 +712,55 @@
                         </div>
                     </header>
 
-                    {/* Navbar ปฏิทิน */}
+                    {/* แถบสถานะผู้ใช้งาน (แสดงเฉพาะเมื่อล็อกอินแล้ว) */}
+                    {user && (
+                        <div className="bg-slate-700 text-white text-xs px-3 py-1.5 flex justify-between items-center z-50 shadow-inner">
+                            <span className="font-bold flex items-center gap-1">
+                                <Icons.User /> สวัสดี, {(user.full_name || '').split(' ')[0]}
+                            </span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${isAdmin ? 'bg-amber-500 text-slate-900' : 'bg-slate-500 text-white'}`}>
+                                STATUS: {isAdmin ? 'ADMIN' : 'USER'}
+                            </span>
+                        </div>
+                    )}
+                    {/* Navbar ปฏิทิน และตัวกรองสถานะ */}
                     <div className="grid-container">
                         <div className="nav-bar">
-                            <button
-                                onClick={() => changePeriod('prev')}
-                                className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200"
-                            >
-                                <Icons.ChevronLeft /> ย้อนกลับ
-                            </button>
-                            <div className="text-center font-bold text-slate-800 text-sm">
-                                {period === 0 ? "1-15 " : "16-สิ้นเดือน "} 
-                                {currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                            <div className="nav-bar-top">
+                                <button
+                                    onClick={() => changePeriod('prev')}
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition"
+                                >
+                                    <Icons.ChevronLeft /> ย้อนกลับ
+                                </button>
+                                <div className="text-center font-bold text-slate-800 text-sm">
+                                    {period === 0 ? "1-15 " : "16-สิ้นเดือน "} 
+                                    {currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                                </div>
+                                <button
+                                    onClick={() => changePeriod('next')}
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition"
+                                >
+                                    ถัดไป <Icons.ChevronRight />
+                                </button>
                             </div>
-                            <button
-                                onClick={() => changePeriod('next')}
-                                className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200"
-                            >
-                                ถัดไป <Icons.ChevronRight />
-                            </button>
+                            
+                            <div className="nav-bar-bottom">
+                                <button onClick={() => setStatusFilter('all')} className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`}>ทั้งหมด</button>
+                                <button onClick={() => setStatusFilter('pending')} className={`filter-btn ${statusFilter === 'pending' ? 'active' : ''}`}>รอดำเนินการ</button>
+                                <button onClick={() => setStatusFilter('done')} className={`filter-btn ${statusFilter === 'done' ? 'active' : ''}`}>ตรวจสอบแล้ว</button>
+                                
+                                {/* ปุ่ม Export แสดงเฉพาะ Admin */}
+                                {isAdmin && (
+                                    <button 
+                                        onClick={exportToExcel} 
+                                        className="filter-btn !text-green-700 !border-green-600 hover:!bg-green-50 flex items-center gap-1 ml-2 transition"
+                                        title="ดาวน์โหลดตารางเดือนนี้เป็น Excel"
+                                    >
+                                        <Icons.Download /> Export
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
                         {/* ตารางคิวงาน */}
@@ -666,6 +817,9 @@
                                                 );
 
                                                 const hasTask = !!task && task.inspector_name !== 'SYSTEM_HOLIDAY';
+                                                
+                                                // เช็คสถานะตัวกรอง (ถ้ามีงาน แต่ไม่ตรงกับสถานะที่เลือก ให้จางลง)
+                                                const isTaskVisible = hasTask && (statusFilter === 'all' || task.status === statusFilter);
 
                                                 return (
                                                     <div
@@ -715,7 +869,7 @@
                                                                     task.status === 'pending'
                                                                         ? 'status-pending'
                                                                         : 'status-done'
-                                                                }`}
+                                                                } ${!isTaskVisible ? 'opacity-20 grayscale' : ''}`}
                                                             >
                                                                 <div className="text-line-1">
                                                                     {task.equipment_no} <span className="text-slate-400 font-normal">/</span> {task.unit_no}
@@ -943,7 +1097,6 @@
                                                     <button
                                                         type="button"
                                                         onClick={() => {
-                                                            // เปลี่ยนจาก confirm() เป็น Custom Confirm
                                                             setConfirmDialog({
                                                                 msg: 'คุณแน่ใจหรือไม่ที่จะลบรายการจองนี้? ข้อมูลจะไม่สามารถกู้คืนได้',
                                                                 onConfirm: async () => {
@@ -972,25 +1125,74 @@
                         </div>
                     )}
 
-                    {/* Modal คู่มือการใช้งาน (Manual) */}
+                    {/* Pop-up แสดงวิธีการใช้งาน (แสดงเมื่อ Login สำเร็จครั้งแรก) */}
+                    {showWelcomeModal && user && (
+                        <div className="backdrop z-[300]">
+                            <div className="bg-white w-[90%] max-w-[450px] rounded-3xl p-6 shadow-2xl animate-pop relative overflow-hidden">
+                                <div className={`absolute top-0 left-0 w-full h-2 ${isAdmin ? 'bg-amber-500' : 'bg-red-600'}`}></div>
+                                <button onClick={() => setShowWelcomeModal(false)} className="btn-close-modern mt-1">
+                                    <Icons.X />
+                                </button>
+                                
+                                <div className="mt-2 mb-4">
+                                    <h3 className="text-xl font-bold text-slate-900">เข้าสู่ระบบสำเร็จ!</h3>
+                                    <p className="text-sm text-slate-500">ยินดีต้อนรับคุณ {(user.full_name || '').split(' ')[0]}</p>
+                                </div>
+
+                                <div className="text-sm text-slate-700 space-y-4 max-h-[55vh] overflow-y-auto pr-2">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <p className="font-bold text-slate-800 mb-1 flex items-center gap-1"><Icons.Book /> วิธีการจองคิว:</p>
+                                        <p className="text-slate-600">แตะที่ช่องว่างในตาราง ให้ตรงกับวันที่และชื่อผู้ตรวจที่คุณต้องการ จากนั้นกรอกรายละเอียดโครงการและกดยืนยัน</p>
+                                    </div>
+
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <p className="font-bold text-slate-800 mb-1 flex items-center gap-1"><Icons.History /> การแก้ไข และ ลบงาน:</p>
+                                        <p className="text-slate-600">คุณสามารถคลิกที่คิวงานที่คุณเป็นคนจองไว้ เพื่อทำการ <b>"แก้ไข"</b> หรือ <b>"ลบ"</b> รายการจองนั้นได้ด้วยตนเองตลอดเวลา</p>
+                                    </div>
+
+                                    {isAdmin && (
+                                        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                                            <p className="font-bold text-amber-800 mb-1 flex items-center gap-1"><Icons.Alert /> สิทธิ์เฉพาะ Admin:</p>
+                                            <ul className="list-disc pl-5 text-amber-700 space-y-1">
+                                                <li>สามารถ <b>แก้ไข/ลบ</b> คิวงานของทุกคนในระบบได้</li>
+                                                <li>สามารถทำการ <b>จองคิวแทรก</b> ในวันหยุด (HOLIDAY) ได้</li>
+                                                <li>สามารถทำการ <b>จองคิวย้อนหลัง</b> ได้</li>
+                                                <li>มีปุ่ม <b>Export Excel</b> เพื่อดาวน์โหลดข้อมูลประจำเดือน</li>
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <button 
+                                    onClick={() => setShowWelcomeModal(false)} 
+                                    className="w-full mt-6 py-3.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 active:scale-[0.98] transition-all shadow-md"
+                                >
+                                    รับทราบ และเริ่มใช้งาน
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal คู่มือการใช้งาน (Manual) กดจากแถบเมนูด้านบน */}
                     {showManual && (
                         <div className="backdrop">
                             <div className="modal-card p-6">
                                 <button onClick={() => setShowManual(false)} className="btn-close-modern">
                                     <Icons.X />
                                 </button>
-                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">คู่มือการใช้งาน</h3>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">คู่มือการใช้งานระบบ</h3>
                                 <div className="text-sm text-slate-700 space-y-3">
-                                    <p><b>1. การจองคิว:</b> ล็อกอินเข้าสู่ระบบ เลือกวันที่และผู้ตรวจที่ต้องการจอง กดที่ช่องว่างเพื่อกรอกข้อมูล</p>
-                                    <p><b>2. การแก้ไข/ลบ:</b> กดที่คิวงานของตนเอง จะมีปุ่มให้แก้ไขหรือลบ (สิทธิ์นี้ทำได้เฉพาะเจ้าของคิวหรือ Admin)</p>
-                                    <p><b>3. วันหยุด:</b> ช่องสีแดงคือวันหยุด ไม่สามารถจองคิวได้ ยกเว้นจะได้รับการอนุมัติ</p>
-                                    <p className="text-xs text-slate-500 mt-4">* หากพบปัญหาการใช้งาน กรุณาติดต่อผู้ดูแลระบบ</p>
+                                    <p><b>1. การเข้าสู่ระบบ:</b> จำเป็นต้องเข้าสู่ระบบก่อนจึงจะสามารถจองคิว หรือดูประวัติการจองของตนเองได้</p>
+                                    <p><b>2. การจองคิว:</b> เลือกวันที่และผู้ตรวจที่ต้องการจอง กดที่ช่องว่างเพื่อกรอกข้อมูล</p>
+                                    <p><b>3. การแก้ไข/ลบ:</b> กดที่คิวงานของตนเอง จะมีปุ่มให้แก้ไขหรือลบ (สิทธิ์นี้ทำได้เฉพาะเจ้าของคิวหรือผู้ดูแลระบบ)</p>
+                                    <p><b>4. วันหยุด:</b> ช่องตารางที่เป็นสีแดงคือวันหยุด ไม่สามารถจองคิวได้</p>
+                                    <p className="text-xs text-slate-500 mt-4 pt-2 border-t">* หากพบปัญหาการใช้งาน กรุณาติดต่อผู้ดูแลระบบ</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Modal ประวัติการทำรายการ (History) */}
+                    {/* Modal ประวัติการทำรายการ (History) + ระบบค้นหา */}
                     {showHistory && (
                         <div className="backdrop">
                             <div className="modal-card p-6">
@@ -998,31 +1200,52 @@
                                     <Icons.X />
                                 </button>
                                 <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">ประวัติการจองของฉัน</h3>
-                                <div className="text-sm text-slate-700 space-y-3 max-h-[60vh] overflow-y-auto">
+                                
+                                {/* ระบบค้นหาในหน้าประวัติ */}
+                                {user && myHistory.length > 0 && (
+                                    <div className="mb-4 relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                            <Icons.Search />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            className="bg-slate-50 pl-10 pr-4 py-2 w-full text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white transition"
+                                            placeholder="ค้นหาชื่อโครงการ หรือ Eq No..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="text-sm text-slate-700 space-y-3 max-h-[50vh] overflow-y-auto">
                                     {!user ? (
-                                        <div className="text-center text-red-500 py-4 font-bold">กรุณาล็อกอินเพื่อดูประวัติ</div>
-                                    ) : db.bookings.filter(b => b.created_by === user.username).length === 0 ? (
-                                        <div className="text-center text-slate-500 py-4">ไม่พบประวัติการจอง</div>
+                                        <div className="text-center text-red-500 py-4 font-bold">กรุณาล็อกอินเพื่อดูประวัติการจอง</div>
+                                    ) : myHistory.length === 0 ? (
+                                        <div className="text-center text-slate-500 py-4 flex flex-col items-center">
+                                            <div className="spinner mb-2 border-t-slate-400" style={{width: '30px', height: '30px'}}></div>
+                                            กำลังโหลดประวัติ หรือ ไม่พบข้อมูล...
+                                        </div>
                                     ) : (
-                                        db.bookings.filter(b => b.created_by === user.username).map((b, i) => (
-                                            <div key={i} className="border p-3 rounded-lg bg-slate-50">
-                                                <div className="font-bold text-slate-800">{b.site_name} (Eq: {b.equipment_no})</div>
-                                                <div className="text-xs text-slate-500 mt-1">วันที่จอง: {b.date.split('T')[0]} | ผู้ตรวจ: {b.inspector_name}</div>
-                                            </div>
-                                        ))
+                                        myHistory
+                                            .filter(b => 
+                                                (b.site_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                                (b.equipment_no || '').toLowerCase().includes(searchQuery.toLowerCase())
+                                            )
+                                            .map((b, i) => (
+                                                <div key={i} className="border p-3 rounded-lg bg-slate-50">
+                                                    <div className="font-bold text-slate-800">{b.site_name} (Eq: {b.equipment_no})</div>
+                                                    <div className="text-xs text-slate-500 mt-1">วันที่จอง: {b.date.split('T')[0]} | ผู้ตรวจ: {b.inspector_name}</div>
+                                                </div>
+                                            ))
                                     )}
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* -------------------------------------
-                        ส่วนใหม่: Custom Alert / Confirm Dialog 
-                    --------------------------------------- */}
-                    
-                    {/* Custom Alert */}
+                    {/* Custom Alert Dialog */}
                     {alertMsg && (
-                        <div className="backdrop z-[200]">
+                        <div className="backdrop z-[400]">
                             <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
                                 <div className="mx-auto w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
@@ -1040,9 +1263,9 @@
                         </div>
                     )}
 
-                    {/* Custom Confirm */}
+                    {/* Custom Confirm Dialog */}
                     {confirmDialog && (
-                        <div className="backdrop z-[200]">
+                        <div className="backdrop z-[400]">
                             <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop relative overflow-hidden">
                                 <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
                                 <div className="mx-auto w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
@@ -1075,28 +1298,25 @@
                     {showLogin && (
                         <LoginComponent
                             onClose={() => setShowLogin(false)}
-                            users={db.users}
                             onLogin={(u) => {
-                                const safeUser = { ...u };
-                                delete safeUser.password;
-                                setUser(safeUser);
+                                setUser(u);
                                 setShowLogin(false);
-                                showToast('ยินดีต้อนรับเข้าสู่ระบบ', 'success');
+                                setShowWelcomeModal(true); 
                             }}
                             apiAction={apiAction}
-                            setAlertMsg={setAlertMsg} // ส่ง setAlertMsg เข้าไปใช้แทน alert() ในหน้า Login
                         />
                     )}
                 </div>
             );
         };
 
-        const LoginComponent = ({ onClose, users, onLogin, apiAction, setAlertMsg }) => {
+        // LoginComponent ถูกแก้ไขให้ตรวจสอบผ่าน API เพื่อความปลอดภัย (ไม่เก็บ Users ไว้ในหน้าเว็บ)
+        const LoginComponent = ({ onClose, onLogin, apiAction }) => {
             const [mode, setMode] = useState('login');
             const [loading, setLoading] = useState(false);
 
             return (
-                <div className="backdrop">
+                <div className="backdrop z-[150]">
                     <div className="modal-card p-6">
                         <button onClick={onClose} className="btn-close-modern">
                             <Icons.X />
@@ -1107,27 +1327,29 @@
 
                         {mode === 'login' ? (
                             <form
-                                onSubmit={(e) => {
+                                onSubmit={async (e) => {
                                     e.preventDefault();
+                                    setLoading(true);
                                     const fd = new FormData(e.target);
-                                    const username = fd.get('username');
-                                    const password = fd.get('password');
-
-                                    const u = users.find(
-                                        x =>
-                                            x.username === username &&
-                                            String(x.password) === String(password)
-                                    );
-
-                                    if (u) onLogin(u);
-                                    else setAlertMsg('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง โปรดลองอีกครั้ง');
+                                    
+                                    // ตรวจสอบรหัสผ่านกับเซิร์ฟเวอร์โดยตรง
+                                    const res = await apiAction({
+                                        action: 'login',
+                                        username: fd.get('username'),
+                                        password: fd.get('password')
+                                    });
+                                    
+                                    setLoading(false);
+                                    if (res && res.status === 'ok') {
+                                        onLogin(res.user);
+                                    }
                                 }}
                                 className="space-y-4"
                             >
                                 <input name="username" required placeholder="Username" className="bg-slate-50" />
                                 <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
-                                <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 transition active:scale-[0.98]">
-                                    LOGIN
+                                <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg transition active:scale-[0.98] ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700'}`}>
+                                    {loading ? 'กำลังตรวจสอบ...' : 'LOGIN'}
                                 </button>
                                 <button
                                     type="button"
@@ -1143,13 +1365,14 @@
                                     e.preventDefault();
                                     setLoading(true);
                                     const fd = new FormData(e.target);
-                                    const ok = await apiAction({
+                                    const res = await apiAction({
                                         action: 'signup',
                                         ...Object.fromEntries(fd)
                                     });
                                     setLoading(false);
-                                    if (ok) {
-                                        setAlertMsg('ส่งคำขอสมัครสมาชิกเรียบร้อยแล้ว กรุณารอ Admin อนุมัติสิทธิ์การใช้งานครับ');
+                                    if (res && res.status === 'ok') {
+                                        // apiAction จะไม่แจ้งเตือน 'ok' ให้เราแจ้งเอง
+                                        alert('ส่งคำขอสมัครสมาชิกเรียบร้อยแล้ว กรุณารอ Admin อนุมัติสิทธิ์การใช้งานครับ');
                                         setMode('login');
                                     }
                                 }}
@@ -1159,7 +1382,7 @@
                                 <input name="email" required placeholder="Email (@schindler.com)" className="bg-slate-50" />
                                 <input name="username" required placeholder="Username" className="bg-slate-50" />
                                 <input name="password" required type="password" placeholder="Password" className="bg-slate-50" />
-                                <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg mt-2 transition ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700 active:scale-[0.98]'}`}>
+                                <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg mt-2 transition active:scale-[0.98] ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700'}`}>
                                     {loading ? 'กำลังส่งข้อมูล...' : 'ยืนยันการสมัคร'}
                                 </button>
                                 <button

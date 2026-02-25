@@ -3,366 +3,89 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#D0021B">
-    
     <title>SAIS Schedule</title>
     
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
     
     <style>
-        /* ตัวแปรสีและค่าพื้นฐาน */
         :root {
             --primary: #D0021B;
-            --primary-dark: #990000;
             --header-bg: #1e293b;
             --border-color: #cbd5e1;
             --safe-top: env(safe-area-inset-top);
             --safe-bottom: env(safe-area-inset-bottom);
         }
 
-        html, body, #root { 
-            height: 100%; 
-            width: 100%; 
-            margin: 0; 
-            overflow: hidden; 
-        }
+        html, body, #root { height: 100%; width: 100%; margin: 0; overflow: hidden; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; -webkit-font-smoothing: antialiased; }
 
-        @supports (height: 100dvh) {
-            html, body, #root {
-                height: 100dvh;
-            }
-        }
-        
-        body { 
-            font-family: 'Sarabun', sans-serif; 
-            background-color: #f1f5f9; 
-            color: #0f172a; 
-            -webkit-font-smoothing: antialiased;
-        }
-
-        /* --- โครงสร้าง Layout หลัก --- */
-        .app-container { 
-            height: 100%; 
-            display: flex; 
-            flex-direction: column; 
-            background: white; 
-        }
-
+        .app-container { height: 100%; display: flex; flex-direction: column; background: white; }
         .main-header {
-            color: white;
-            padding-top: max(4px, var(--safe-top)); 
-            padding-bottom: 4px;
-            padding-left: 12px; 
-            padding-right: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 60; 
-            flex-shrink: 0;
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between;
-            height: 45px; 
-            transition: background-color 0.3s ease;
+            color: white; padding-top: max(4px, var(--safe-top)); padding-bottom: 4px;
+            padding-left: 12px; padding-right: 12px; height: 45px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 60; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
         }
 
-        /* ปรับ Navbar ให้รองรับแถวปุ่มตัวกรอง (Filter) ด้านล่าง */
         .nav-bar {
-            background: white; 
-            padding: 4px 12px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex; 
-            flex-direction: column;
-            gap: 6px;
-            flex-shrink: 0; 
-            z-index: 50;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            background: white; padding: 4px 12px; border-bottom: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 50;
         }
 
-        .nav-bar-top {
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            width: 100%;
-        }
-
-        .nav-bar-bottom {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-        }
-
-        /* --- ตารางปฏิทิน (Grid) --- */
-        .grid-container { 
-            flex-grow: 1; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden; 
-            position: relative; 
-        }
-
-        .grid-wrapper {
-            flex-grow: 1; 
-            overflow: auto; 
-            position: relative;
-            background: white;
-            -webkit-overflow-scrolling: touch;
-            padding-bottom: var(--safe-bottom); 
-        }
+        .grid-container { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .grid-wrapper { flex-grow: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; padding-bottom: var(--safe-bottom); }
 
         .calendar-grid {
             display: grid;
             grid-template-columns: 50px repeat(var(--col-count), minmax(110px, 1fr));
             grid-template-rows: 35px repeat(16, minmax(0, 1fr));
-            height: 100%; 
-            min-width: 100%; 
+            height: 100%; min-width: 100%; 
         }
 
-        .sticky-corner {
-            position: sticky; top: 0; left: 0; z-index: 40;
-            background: #0f172a; color: white;
-            border-right: 1px solid #334155; border-bottom: 1px solid #334155;
-            display: flex; align-items: center; justify-content: center;
-        }
+        .sticky-corner { position: sticky; top: 0; left: 0; z-index: 40; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
+        .sticky-top { position: sticky; top: 0; z-index: 30; background: #1e293b; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
+        .sticky-left { position: sticky; left: 0; z-index: 20; background: white; border-right: 2px solid #94a3b8; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; justify-content: center; }
 
-        .sticky-top {
-            position: sticky; top: 0; z-index: 30;
-            background: #1e293b; color: white;
-            border-right: 1px solid #334155; border-bottom: 1px solid #334155;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-        }
-
-        .sticky-left {
-            position: sticky; left: 0; z-index: 20;
-            background: white; border-right: 2px solid #94a3b8; border-bottom: 1px solid var(--border-color);
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-        }
-
-        .grid-cell {
-            border-right: 1px solid var(--border-color);
-            border-bottom: 1px solid var(--border-color);
-            position: relative;
-            background: white;
-            padding: 1px;
-            display: flex; 
-            align-items: stretch; 
-            justify-content: stretch;
-        }
-        .task-content {
-            width: 100%; 
-            height: 100%;
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center;
-            text-align: center;
-            overflow: hidden;
-            cursor: pointer;
-        }
-        
-        .text-line-1 {
-            font-size: 11px; 
-            font-weight: 700; 
-            color: #000;
-            line-height: 1.1; 
-            width: 100%; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis;
-        }
-
-        .text-line-2 {
-            font-size: 10px; 
-            font-weight: 400; 
-            color: #475569;
-            line-height: 1.1; 
-            width: 100%; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis;
-        }
-
-        .status-pending { 
-            background: #f8fafc; 
-            border-left: 3px solid #cbd5e1; 
-        }
-
-        .status-done { 
-            background: #dcfce7; 
-            border-left: 3px solid #16a34a; 
-        }
-
-        .is-today { 
-            background: #eff6ff !important; 
+        .grid-cell { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); position: relative; background: white; padding: 1px; display: flex; align-items: stretch; }
+        /* จุดที่ 3: CSS สำหรับไฮไลท์สีน้ำเงินทั้งแถวของวันที่ปัจจุบัน */
+        .is-today-row { 
+            background-color: #eff6ff !important; 
             box-shadow: inset 4px 0 0 #2563eb; 
         }
-        
-        .is-sunday-col { 
-            background-color: #D0021B !important; 
-            color: white !important; 
-            border-right: 1px solid #991b1b; 
-        }
 
-        .is-holiday-cell { 
-            background-color: #D0021B !important; 
-            color: white !important; 
-        }
+        .task-content { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; overflow: hidden; }
+        .text-line-1 { font-size: 11px; font-weight: 700; color: #000; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .text-line-2 { font-size: 10px; font-weight: 400; color: #475569; line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .holiday-label-new {
-            font-size: 10px; 
-            font-weight: 900; 
-            color: rgba(255,255,255,0.8);
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            width: 100%;
-        }
+        .status-pending { background: #f8fafc; border-left: 3px solid #cbd5e1; }
+        .status-done { background: #dcfce7; border-left: 3px solid #16a34a; }
 
-        .btn-icon { 
-            width: 32px; 
-            height: 32px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            border-radius: 8px; 
-            background: rgba(255,255,255,0.15); 
-            color: white; 
-            transition: all 0.2s; 
-            border: 1px solid rgba(255,255,255,0.1); 
-        }
+        .is-sunday-col { background-color: #D0021B !important; color: white !important; }
+        .is-holiday-cell { background-color: #D0021B !important; color: white !important; }
+        .holiday-label-new { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.8); width: 100%; text-align: center; }
 
-        .btn-close-modern { 
-            position: absolute; 
-            top: 12px; 
-            right: 12px; 
-            width: 36px; 
-            height: 36px; 
-            background: #f1f5f9; 
-            border-radius: 50%; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            color: #64748b; 
-            border: 1px solid #e2e8f0; 
-            cursor: pointer; 
-            z-index: 60; 
-        }
+        .btn-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-close-modern { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; border: 1px solid #e2e8f0; }
 
-        .backdrop { 
-            position: fixed; 
-            inset: 0; 
-            background: rgba(0,0,0,0.65); 
-            backdrop-filter: blur(4px); 
-            z-index: 100; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-        }
+        .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-card { background: white; width: 95%; max-width: 450px; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); display: flex; flex-direction: column; max-height: 90vh; position: relative; }
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
 
-        .modal-card { 
-            background: white; 
-            width: 95%; 
-            max-width: 450px; 
-            border-radius: 24px; 
-            overflow: hidden; 
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4); 
-            display: flex; 
-            flex-direction: column; 
-            max-height: 90vh; 
-            position: relative; 
-        }
-
-        .animate-pop { 
-            animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); 
-        }
-
-        @keyframes pop { 
-            0% { transform: scale(0.9); opacity: 0; } 
-            100% { transform: scale(1); opacity: 1; } 
-        }
-
-        input, select { 
-            font-size: 16px !important; 
-            border: 1px solid #cbd5e1; 
-            border-radius: 10px; 
-            padding: 12px; 
-            width: 100%; 
-            outline: none; 
-            color: #0f172a; 
-            font-family: 'Sarabun'; 
-        }
-        
-        .map-preview { 
-            width: 100%; 
-            height: 150px; 
-            border-radius: 12px; 
-            overflow: hidden; 
-            margin-top: 10px; 
-            border: 1px solid #e2e8f0; 
-        }
-
-        /* --- Loading Screen เต็มจอ --- */
-        .loading-screen { 
-            position: fixed; 
-            inset: 0; 
-            background: rgba(255,255,255,0.95); 
-            z-index: 9999; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-        }
-        .spinner { 
-            width: 50px; 
-            height: 50px; 
-            border: 5px solid #f1f5f9; 
-            border-top: 5px solid var(--primary); 
-            border-radius: 50%; 
-            animation: spin 1s linear infinite; 
-            margin-bottom: 16px; 
-        }
-        @keyframes spin { 
-            0% { transform: rotate(0deg); } 
-            100% { transform: rotate(360deg); } 
-        }
-
-        /* --- ปุ่มตัวกรอง (Filter Status) --- */
-        .filter-btn {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            border: 1px solid #cbd5e1;
-            color: #64748b;
-            background: white;
-            transition: all 0.2s;
-            cursor: pointer;
-        }
-        .filter-btn.active {
-            background: #0f172a;
-            color: white;
-            border-color: #0f172a;
-        }
+        input { font-size: 16px !important; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; width: 100%; outline: none; }
+        .map-preview { width: 100%; height: 150px; border-radius: 12px; overflow: hidden; margin-top: 10px; border: 1px solid #e2e8f0; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        
-        // SCRIPT_URL อันล่าสุดของคุณ
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzXdkcrSJ7Ri-IfL92BMDIyQ7iXSfMYEdFbF9aGJclb5o9JAb0LmFGV0jNvFMzt_wBL/exec"; 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyliEBL79vR4dgUB4GTkIkDbhHsPF1p7br8K-42_PsddRKOYNZOUx75Cmdk1Mn1GoR5/exec"; 
         const ADMIN_USERNAME = "jiraphong2227";
 
         const getLocalDateString = (dateObj) => {
@@ -372,10 +95,23 @@
             return `${year}-${month}-${day}`;
         };
 
+        /* จุดที่ 1: แก้ไข Google Maps Embed ให้แสดงหมุดจริงจากพิกัดในลิงก์ */
+        const getMapEmbedUrl = (link) => {
+            if (!link) return null;
+            try {
+                const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+                const match = link.match(regex);
+                if (match) {
+                    return `https://www.google.com/maps/embed/v1/place?key=YOUR_API_KEY&q=${match[1]},${match[2]}&zoom=15`.replace("YOUR_API_KEY", ""); // ใช้โหมด Embed ปกติ
+                }
+                // ถ้าไม่มีพิกัด ให้พยายามใช้ชื่อสถานที่หรือลิงก์ตรง
+                return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=15&output=embed`;
+            } catch (e) { return null; }
+        };
+
         const Icons = {
             Book: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
             History: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-            Camera: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>,
             User: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
             Login: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>,
             X: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
@@ -383,56 +119,25 @@
             ChevronRight: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
             Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
             Alert: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
-            Info: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
-            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-            Search: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-            Download: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
         };
-
-        // ลิงก์ iframe Google Maps แก้ไขใหม่ให้แสดงแผนที่จริง
-        const getMapEmbedUrl = (link) => {
-            if (!link) return null;
-            try {
-                // เช็คว่ามีพิกัด ละติจูด,ลองจิจูด หรือไม่
-                const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
-                const match = link.match(regex);
-                if (match) {
-                    return `https://maps.google.com/maps?q=${match[1]},${match[2]}&hl=th&z=15&output=embed`;
-                }
-                // ถ้าเป็นลิงก์ชื่อสถานที่ปกติ
-                return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=15&output=embed`;
-            } catch (e) {
-                return null;
-            }
-        };
-
         const App = () => {
-            // ไม่โหลด users และ history มาเก็บไว้แบบสาธารณะอีกต่อไปเพื่อความปลอดภัย
-            const [db, setDb] = useState({ bookings: [], inspectors: [] }); 
+            const [db, setDb] = useState({ bookings: [], users: [], history: [], inspectors: [] });
             const [user, setUser] = useState(null); 
             const [loading, setLoading] = useState(false);
             const [modal, setModal] = useState(null); 
             const [showLogin, setShowLogin] = useState(false);
             const [showManual, setShowManual] = useState(false);
-            
-            // State สำหรับ History และระบบค้นหา
             const [showHistory, setShowHistory] = useState(false);
-            const [myHistory, setMyHistory] = useState([]); 
-            const [searchQuery, setSearchQuery] = useState('');
             
-            // State สำหรับ Custom Popup
             const [alertMsg, setAlertMsg] = useState(null);
             const [confirmDialog, setConfirmDialog] = useState(null);
             const [toast, setToast] = useState(null);
-            const [showWelcomeModal, setShowWelcomeModal] = useState(false);
             
-            // State สำหรับปฏิทิน
             const [currentDate, setCurrentDate] = useState(new Date());
-            const [period, setPeriod] = useState(0); 
-
-            // State ใหม่: Loading เต็มจอ และ ตัวกรองสถานะ
-            const [isInitialLoading, setIsInitialLoading] = useState(true);
-            const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'pending', 'done'
+            
+            /* จุดที่ 2: ตั้งค่าหน้าเริ่มต้นตามวันที่ปัจจุบัน (ถ้าเกินวันที่ 15 ให้แสดงครึ่งเดือนหลังทันที) */
+            const [period, setPeriod] = useState(new Date().getDate() > 15 ? 1 : 0); 
 
             const scrollRef = useRef(null);
 
@@ -441,43 +146,34 @@
                 [user]
             );
 
-            // ดึงข้อมูลตารางและผู้ตรวจ
+            useEffect(() => {
+                fetchData();
+                const timer = setInterval(() => {
+                    if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog && !alertMsg) {
+                        fetchData();
+                    }
+                }, 180000); 
+                return () => clearInterval(timer);
+            }, [modal, showLogin, showManual, showHistory, confirmDialog, alertMsg]);
+
             const fetchData = async () => {
                 if (!SCRIPT_URL) return;
                 try {
                     const controller = new AbortController();
                     const timeout = setTimeout(() => controller.abort(), 15000);
-
                     const res = await fetch(SCRIPT_URL, { signal: controller.signal });
                     clearTimeout(timeout);
-
                     if (!res.ok) throw new Error('Network response was not ok');
-
                     const data = await res.json();
                     setDb({
                         bookings: data.bookings || [],
+                        users: data.users || [],
+                        history: data.history || [],
                         inspectors: data.inspectors || []
                     });
-                } catch (e) {
-                    console.error("Fetch Error:", e);
-                    setAlertMsg('ไม่สามารถดึงข้อมูลได้ โปรดลองรีเฟรชหน้าเว็บอีกครั้ง');
-                } finally {
-                    // โหลดข้อมูลเสร็จแล้ว ปิดหน้าจอโหลดเต็มจอ
-                    setIsInitialLoading(false);
-                }
+                } catch (e) { console.error("Fetch Error:", e); }
             };
 
-            useEffect(() => {
-                fetchData();
-                const timer = setInterval(() => {
-                    if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog && !alertMsg && !showWelcomeModal) {
-                        fetchData();
-                    }
-                }, 180000); 
-                return () => clearInterval(timer);
-            }, [modal, showLogin, showManual, showHistory, confirmDialog, alertMsg, showWelcomeModal]);
-
-            // ฟังก์ชันกลางสำหรับการเชื่อมต่อ POST (Login, เพิ่ม, แก้ไข, ลบ)
             const apiAction = async (payload) => {
                 setLoading(true);
                 try {
@@ -486,25 +182,19 @@
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify(payload) 
                     });
-
                     if (!res.ok) throw new Error('Network response was not ok');
-
                     const result = await res.json();
                     setLoading(false);
-
                     if (result.status === 'ok') { 
-                        // ถ้าไม่ใช่คำสั่ง Login หรือดึงประวัติ ให้รีเฟรชตารางใหม่
-                        if(payload.action !== 'login' && payload.action !== 'get_my_history') {
-                            await fetchData(); 
-                        }
-                        return result; 
+                        await fetchData(); 
+                        return true; 
                     } else { 
                         setAlertMsg('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ')); 
                         return false; 
                     }
                 } catch (e) { 
                     setLoading(false); 
-                    setAlertMsg('การเชื่อมต่อขัดข้อง โปรดตรวจสอบอินเทอร์เน็ตหรือลิงก์ Apps Script'); 
+                    setAlertMsg('การเชื่อมต่อขัดข้อง'); 
                     return false; 
                 }
             };
@@ -513,61 +203,6 @@
                 setToast({ msg, type });
                 setTimeout(() => setToast(null), 3000);
             };
-
-            // ดึงประวัติแบบ Real-time เมื่อเปิดหน้า History เท่านั้น (เพิ่ม Performance และ Security)
-            useEffect(() => {
-                if (showHistory && user) {
-                    const fetchHistory = async () => {
-                        const res = await apiAction({ action: 'get_my_history', user: user.username });
-                        if (res && res.data) {
-                            setMyHistory(res.data);
-                        }
-                    };
-                    fetchHistory();
-                } else if (!showHistory) {
-                    setSearchQuery(''); // เคลียร์คำค้นหาเมื่อปิดหน้าต่างประวัติ
-                }
-            }, [showHistory, user]);
-            // ฟังก์ชัน Export ข้อมูลเป็น Excel (เฉพาะ Admin)
-            const exportToExcel = () => {
-                if (!isAdmin) {
-                    setAlertMsg('คุณไม่มีสิทธิ์ใช้งานฟีเจอร์นี้ (เฉพาะ Admin)');
-                    return;
-                }
-                
-                // ดึงเฉพาะข้อมูลของเดือน-ปี ที่กำลังเปิดดูอยู่
-                const targetYear = currentDate.getFullYear();
-                const targetMonth = String(currentDate.getMonth() + 1).padStart(2, '0');
-                const prefix = `${targetYear}-${targetMonth}`;
-                
-                const exportData = db.bookings
-                    .filter(b => b.date && b.date.startsWith(prefix) && b.inspector_name !== 'SYSTEM_HOLIDAY')
-                    .map(b => ({
-                        'วันที่': b.date.split('T')[0],
-                        'ผู้ตรวจสอบ': b.inspector_name,
-                        'ชื่อโครงการ': b.site_name,
-                        'Eq No.': b.equipment_no,
-                        'Unit': b.unit_no,
-                        'ผู้ควบคุมงาน': b.foreman,
-                        'เบอร์ติดต่อ': b.tel,
-                        'สถานะ': b.status === 'done' ? 'ตรวจสอบแล้ว' : 'รอดำเนินการ',
-                        'ผู้ทำรายการ': b.created_by
-                    }));
-
-                if (exportData.length === 0) {
-                    setAlertMsg('ไม่มีข้อมูลคิวงานในเดือนนี้สำหรับดาวน์โหลดครับ');
-                    return;
-                }
-
-                // สร้างและดาวน์โหลดไฟล์ Excel ผ่าน SheetJS
-                const worksheet = XLSX.utils.json_to_sheet(exportData);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "SAIS_Bookings");
-                
-                const monthStr = currentDate.toLocaleDateString('th-TH', { month: 'short', year: 'numeric' });
-                XLSX.writeFile(workbook, `SAIS_Schedule_${monthStr}.xlsx`);
-            };
-
             const changePeriod = (dir) => {
                 let newDate = new Date(currentDate);
                 if (dir === 'next') {
@@ -645,7 +280,7 @@
                 );
 
                 if (isDup) {
-                    setAlertMsg(`ขออภัย: เลข Eq No. ${data.equipment_no} ถูกจองไปแล้วในวันนี้ โปรดตรวจสอบอีกครั้ง`);
+                    setAlertMsg(`ขออภัย: เลข Eq No. ${data.equipment_no} ถูกจองไปแล้วในวันนี้`);
                     return;
                 }
 
@@ -659,54 +294,43 @@
                     user: user.username
                 };
 
-                const res = await apiAction(payload);
-                if (res && res.status === 'ok') {
+                const ok = await apiAction(payload);
+                if (ok) {
                     setModal(null);
                     showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกการจองสำเร็จ!', 'success');
                 }
             };
-
             return (
                 <div className="app-container">
-                    
-                    {/* UI หน้าจอโหลดข้อมูลแบบเต็มจอตอนเข้าเว็บครั้งแรก */}
-                    {isInitialLoading && (
-                        <div className="loading-screen">
-                            <div className="spinner"></div>
-                            <h2 className="text-slate-800 font-bold text-lg">กำลังซิงค์ข้อมูล...</h2>
-                            <p className="text-slate-500 text-sm mt-1">กรุณารอสักครู่ ระบบกำลังเชื่อมต่อฐานข้อมูล</p>
-                        </div>
-                    )}
-
-                    {/* แจ้งเตือนแบบ Pop-up (Toast) */}
+                    {/* แจ้งเตือน Pop-up */}
                     {toast && (
                         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl bg-white flex items-center gap-3 animate-pop font-bold text-sm">
                             {toast.type === 'success' ? <Icons.Check /> : <Icons.Alert />} {toast.msg}
                         </div>
                     )}
 
-                    {/* Header: เปลี่ยนสีพื้นหลังตามสถานะการเข้าสู่ระบบ เพื่อความแตกต่าง */}
+                    {/* Header */}
                     <header className={`main-header ${user ? 'bg-slate-800' : 'bg-red-600'}`}>
                         <div className="flex items-center gap-2">
                             <h1 className="text-xl font-bold tracking-wide">SAIS BOOKING</h1>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button className="btn-icon" onClick={() => setShowManual(true)} title="คู่มือการใช้งาน">
+                            <button className="btn-icon" onClick={() => setShowManual(true)} title="คู่มือ">
                                 <Icons.Book />
                             </button>
-                            <button className="btn-icon" onClick={() => setShowHistory(true)} title="ประวัติการจอง">
+                            <button className="btn-icon" onClick={() => setShowHistory(true)} title="ประวัติ">
                                 <Icons.History />
                             </button>
                             {user ? (
                                 <button
-                                    className="ml-1 bg-white text-slate-800 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:bg-slate-200 transition"
+                                    className="ml-1 bg-white text-slate-800 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2"
                                     onClick={() => setUser(null)}
                                 >
-                                    LOGOUT <Icons.Login />
+                                    {(user.full_name || '').split(' ')[0]} <Icons.Login />
                                 </button>
                             ) : (
                                 <button
-                                    className="ml-1 bg-white text-red-700 px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:bg-slate-100 transition"
+                                    className="ml-1 bg-white text-red-700 px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2"
                                     onClick={() => setShowLogin(true)}
                                 >
                                     LOGIN <Icons.User />
@@ -715,57 +339,34 @@
                         </div>
                     </header>
 
-                    {/* แถบสถานะผู้ใช้งาน (แสดงเฉพาะเมื่อล็อกอินแล้ว) */}
-                    {user && (
-                        <div className="bg-slate-700 text-white text-xs px-3 py-1.5 flex justify-between items-center z-50 shadow-inner">
-                            <span className="font-bold flex items-center gap-1">
-                                <Icons.User /> สวัสดี, {(user.full_name || '').split(' ')[0]}
-                            </span>
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wide ${isAdmin ? 'bg-amber-500 text-slate-900' : 'bg-slate-500 text-white'}`}>
-                                STATUS: {isAdmin ? 'ADMIN' : 'USER'}
-                            </span>
-                        </div>
-                    )}
-                    {/* Navbar ปฏิทิน และตัวกรองสถานะ */}
+                    {/* แถบนำทาง (Navbar) */}
                     <div className="grid-container">
                         <div className="nav-bar">
-                            <div className="nav-bar-top">
+                            <div className="flex justify-between items-center w-full">
                                 <button
                                     onClick={() => changePeriod('prev')}
-                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition"
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200"
                                 >
                                     <Icons.ChevronLeft /> ย้อนกลับ
                                 </button>
+                                
+                                {/* จุดที่ 4: แสดงวันที่สิ้นเดือนตามจริงแทนคำว่า "สิ้นเดือน" */}
                                 <div className="text-center font-bold text-slate-800 text-sm">
-                                    {period === 0 ? "1-15 " : "16-สิ้นเดือน "} 
+                                    {period === 0 
+                                        ? "1-15 " 
+                                        : `16-${new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()} `
+                                    } 
                                     {currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
                                 </div>
+
                                 <button
                                     onClick={() => changePeriod('next')}
-                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition"
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200"
                                 >
                                     ถัดไป <Icons.ChevronRight />
                                 </button>
                             </div>
-                            
-                            <div className="nav-bar-bottom">
-                                <button onClick={() => setStatusFilter('all')} className={`filter-btn ${statusFilter === 'all' ? 'active' : ''}`}>ทั้งหมด</button>
-                                <button onClick={() => setStatusFilter('pending')} className={`filter-btn ${statusFilter === 'pending' ? 'active' : ''}`}>รอดำเนินการ</button>
-                                <button onClick={() => setStatusFilter('done')} className={`filter-btn ${statusFilter === 'done' ? 'active' : ''}`}>ตรวจสอบแล้ว</button>
-                                
-                                {/* ปุ่ม Export แสดงเฉพาะ Admin */}
-                                {isAdmin && (
-                                    <button 
-                                        onClick={exportToExcel} 
-                                        className="filter-btn !text-green-700 !border-green-600 hover:!bg-green-50 flex items-center gap-1 ml-2 transition"
-                                        title="ดาวน์โหลดตารางเดือนนี้เป็น Excel"
-                                    >
-                                        <Icons.Download /> Export
-                                    </button>
-                                )}
-                            </div>
                         </div>
-
                         {/* ตารางคิวงาน */}
                         <div className="grid-wrapper" ref={scrollRef}>
                             <div
@@ -787,14 +388,11 @@
 
                                 {daysInView.map((d, index) => (
                                     <React.Fragment key={index}>
+                                        {/* หัวแถบวันที่ด้านซ้าย */}
                                         <div
                                             className={`sticky-left ${
-                                                d.isSunday
-                                                    ? 'is-sunday-col'
-                                                    : d.isToday
-                                                    ? 'is-today'
-                                                    : ''
-                                            }`}
+                                                d.isSunday ? 'is-sunday-col' : ''
+                                            } ${d.isToday ? 'is-today-row' : ''}`}
                                         >
                                             {!d.isEmpty && (
                                                 <>
@@ -808,6 +406,7 @@
                                             )}
                                         </div>
 
+                                        {/* ช่องข้อมูลในตาราง */}
                                         {!d.isEmpty &&
                                             db.inspectors.map((ins, idx) => {
                                                 const isHoliday = d.isHoliday || d.isSunday;
@@ -820,24 +419,22 @@
                                                 );
 
                                                 const hasTask = !!task && task.inspector_name !== 'SYSTEM_HOLIDAY';
-                                                
-                                                // เช็คสถานะตัวกรอง (ถ้ามีงาน แต่ไม่ตรงกับสถานะที่เลือก ให้จางลง)
-                                                const isTaskVisible = hasTask && (statusFilter === 'all' || task.status === statusFilter);
 
                                                 return (
                                                     <div
                                                         key={idx}
+                                                        /* จุดที่ 3: เพิ่มคลาส is-today-row เพื่อไฮไลท์สีน้ำเงินทั้งแถวของวันนี้ */
                                                         className={`grid-cell cursor-pointer hover:bg-slate-50 ${
                                                             isHoliday && !hasTask
                                                                 ? 'is-holiday-cell'
                                                                 : ''
-                                                        }`}
+                                                        } ${d.isToday && !(isHoliday && !hasTask) ? 'is-today-row' : ''}`}
                                                         onClick={() => {
                                                             if (hasTask) {
                                                                 setModal({ type: 'detail', data: task });
                                                             } else {
                                                                 if (isHoliday && !isAdmin) {
-                                                                    setAlertMsg('วันหยุดระบบไม่เปิดให้จองคิวครับ (เฉพาะ Admin ที่จัดการได้)');
+                                                                    setAlertMsg('วันหยุดระบบไม่เปิดให้จองคิวครับ');
                                                                     return;
                                                                 }
                                                                 if (!user) {
@@ -872,7 +469,7 @@
                                                                     task.status === 'pending'
                                                                         ? 'status-pending'
                                                                         : 'status-done'
-                                                                } ${!isTaskVisible ? 'opacity-20 grayscale' : ''}`}
+                                                                }`}
                                                             >
                                                                 <div className="text-line-1">
                                                                     {task.equipment_no} <span className="text-slate-400 font-normal">/</span> {task.unit_no}
@@ -894,195 +491,71 @@
                     {modal && (
                         <div className="backdrop">
                             <div className="modal-card">
-                                <button
-                                    onClick={() => setModal(null)}
-                                    className="btn-close-modern"
-                                >
+                                <button onClick={() => setModal(null)} className="btn-close-modern">
                                     <Icons.X />
                                 </button>
                                 <div className="p-6 overflow-y-auto">
                                     <div className="mb-6 border-b pb-4 pr-10">
                                         <h3 className="text-xl font-bold text-slate-900">
-                                            {modal.type === 'booking'
-                                                ? 'จองคิวตรวจ'
-                                                : 'รายละเอียด'}
+                                            {modal.type === 'booking' ? 'จองคิวตรวจ' : 'รายละเอียด'}
                                         </h3>
                                         <div className="text-xs text-red-600 font-bold uppercase mt-1">
-                                            {modal.data.inspector_name} •{' '}
-                                            {modal.data.date
-                                                ? modal.data.date.split('T')[0]
-                                                : ''}
+                                            {modal.data.inspector_name} • {modal.data.date ? modal.data.date.split('T')[0] : ''}
                                         </div>
                                     </div>
 
                                     {modal.type === 'booking' ? (
-                                        <form
-                                            onSubmit={handleBookingSubmit}
-                                            className="space-y-3"
-                                        >
+                                        <form onSubmit={handleBookingSubmit} className="space-y-3">
                                             <div>
-                                                <label className="text-xs font-bold text-slate-500">
-                                                    Project Name
-                                                </label>
-                                                <input
-                                                    name="site_name"
-                                                    defaultValue={modal.data.site_name}
-                                                    required
-                                                    placeholder="ชื่อโครงการ"
-                                                />
+                                                <label className="text-xs font-bold text-slate-500">Project Name</label>
+                                                <input name="site_name" defaultValue={modal.data.site_name} required placeholder="ชื่อโครงการ" />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-500">
-                                                        Eq No.
-                                                    </label>
-                                                    <input
-                                                        name="equipment_no"
-                                                        defaultValue={
-                                                            modal.data.equipment_no
-                                                        }
-                                                        required
-                                                        placeholder="XXXX"
-                                                    />
+                                                    <label className="text-xs font-bold text-slate-500">Eq No.</label>
+                                                    <input name="equipment_no" defaultValue={modal.data.equipment_no} required placeholder="XXXX" />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-500">
-                                                        Unit
-                                                    </label>
-                                                    <input
-                                                        name="unit_no"
-                                                        defaultValue={modal.data.unit_no}
-                                                        required
-                                                        placeholder="A1"
-                                                    />
+                                                    <label className="text-xs font-bold text-slate-500">Unit</label>
+                                                    <input name="unit_no" defaultValue={modal.data.unit_no} required placeholder="A1" />
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="text-xs font-bold text-slate-500">
-                                                    Google Map Link
-                                                </label>
-                                                <input
-                                                    name="map_link"
-                                                    defaultValue={modal.data.map_link}
-                                                    placeholder="วางลิงก์ Google Map ที่นี่"
-                                                />
+                                                <label className="text-xs font-bold text-slate-500">Google Map Link</label>
+                                                <input name="map_link" defaultValue={modal.data.map_link} placeholder="วางลิงก์ Google Map ที่นี่" />
                                             </div>
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-500">
-                                                        Foreman
-                                                    </label>
-                                                    <input
-                                                        name="foreman"
-                                                        defaultValue={modal.data.foreman}
-                                                        placeholder="ชื่อผู้ควบคุมงาน"
-                                                    />
+                                                    <label className="text-xs font-bold text-slate-500">Foreman</label>
+                                                    <input name="foreman" defaultValue={modal.data.foreman} placeholder="ชื่อผู้ควบคุมงาน" />
                                                 </div>
                                                 <div>
-                                                    <label className="text-xs font-bold text-slate-500">
-                                                        Tel
-                                                    </label>
-                                                    <input
-                                                        name="tel"
-                                                        defaultValue={modal.data.tel}
-                                                        type="tel"
-                                                        placeholder="08x-xxx-xxxx"
-                                                    />
+                                                    <label className="text-xs font-bold text-slate-500">Tel</label>
+                                                    <input name="tel" defaultValue={modal.data.tel} type="tel" placeholder="08x-xxx-xxxx" />
                                                 </div>
                                             </div>
-                                            <button
-                                                disabled={loading}
-                                                className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all 
-                                                ${
-                                                    loading
-                                                        ? 'bg-slate-400 text-white cursor-not-allowed'
-                                                        : 'bg-red-600 text-white active:bg-red-700'
-                                                }`}
-                                            >
-                                                {loading
-                                                    ? 'กำลังบันทึกข้อมูล...'
-                                                    : modal.data.id
-                                                    ? 'อัปเดตข้อมูล'
-                                                    : 'ยืนยันการจอง'}
+                                            <button disabled={loading} className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all ${loading ? 'bg-slate-400 text-white' : 'bg-red-600 text-white active:bg-red-700'}`}>
+                                                {loading ? 'กำลังบันทึกข้อมูล...' : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')}
                                             </button>
                                         </form>
                                     ) : (
                                         <div className="space-y-4">
-                                            <h2 className="text-xl font-bold text-slate-900">
-                                                {modal.data.site_name || '-'}
-                                            </h2>
+                                            <h2 className="text-xl font-bold text-slate-900">{modal.data.site_name || '-'}</h2>
                                             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-y-4 text-sm">
-                                                <div>
-                                                    <span className="text-xs text-slate-400 block font-bold">
-                                                        Eq No.
-                                                    </span>
-                                                    <b>
-                                                        {modal.data.equipment_no || '-'}
-                                                    </b>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-slate-400 block font-bold">
-                                                        Unit
-                                                    </span>
-                                                    <b>{modal.data.unit_no || '-'}</b>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-slate-400 block font-bold">
-                                                        Foreman
-                                                    </span>
-                                                    <b>{modal.data.foreman || '-'}</b>
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-slate-400 block font-bold">
-                                                        Tel
-                                                    </span>
-                                                    {modal.data.tel ? (
-                                                        <a
-                                                            href={`tel:${modal.data.tel}`}
-                                                            className="text-blue-600 font-bold"
-                                                        >
-                                                            {modal.data.tel}
-                                                        </a>
-                                                    ) : (
-                                                        <b>-</b>
-                                                    )}
-                                                </div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Eq No.</span><b>{modal.data.equipment_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Unit</span><b>{modal.data.unit_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Foreman</span><b>{modal.data.foreman || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Tel</span>{modal.data.tel ? <a href={`tel:${modal.data.tel}`} className="text-blue-600 font-bold">{modal.data.tel}</a> : <b>-</b>}</div>
                                             </div>
 
                                             {modal.data.map_link && (
                                                 <div>
-                                                    <span className="text-xs font-bold text-slate-500 uppercase">
-                                                        Location
-                                                    </span>
-                                                    <div className="map-preview relative mt-1 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200 group">
+                                                    <span className="text-xs font-bold text-slate-500 uppercase">Location</span>
+                                                    <div className="map-preview relative mt-1 bg-slate-100">
                                                         {getMapEmbedUrl(modal.data.map_link) ? (
-                                                            <>
-                                                                <iframe
-                                                                    width="100%"
-                                                                    height="100%"
-                                                                    frameBorder="0"
-                                                                    src={getMapEmbedUrl(modal.data.map_link)}
-                                                                    loading="lazy"
-                                                                    referrerPolicy="no-referrer-when-downgrade"
-                                                                ></iframe>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => window.open(modal.data.map_link, '_blank', 'noopener,noreferrer')}
-                                                                    className="absolute bottom-2 right-2 bg-white/90 backdrop-blur border px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-700 shadow-md hover:bg-white transition opacity-90 group-hover:opacity-100"
-                                                                >
-                                                                    <Icons.MapPin /> เปิดแอปแผนที่
-                                                                </button>
-                                                            </>
+                                                            <iframe width="100%" height="100%" frameBorder="0" src={getMapEmbedUrl(modal.data.map_link)} loading="lazy"></iframe>
                                                         ) : (
-                                                            <div className="w-full h-full flex items-center justify-center py-8">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => window.open(modal.data.map_link, '_blank', 'noopener,noreferrer')}
-                                                                    className="bg-white border px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-600 shadow-sm"
-                                                                >
-                                                                    <Icons.MapPin /> เปิด Google Maps
-                                                                </button>
-                                                            </div>
+                                                            <div className="w-full h-full flex items-center justify-center py-8 text-xs text-slate-400 font-bold">ไม่สามารถดึงข้อมูลแผนที่ได้</div>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1090,35 +563,16 @@
 
                                             {(isAdmin || user?.username === modal.data.created_by) && (
                                                 <div className="flex gap-2 mt-4">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setModal({ type: 'booking', data: modal.data })}
-                                                        className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm bg-slate-50 active:bg-slate-100"
-                                                    >
-                                                        แก้ไข
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setConfirmDialog({
-                                                                msg: 'คุณแน่ใจหรือไม่ที่จะลบรายการจองนี้? ข้อมูลจะไม่สามารถกู้คืนได้',
-                                                                onConfirm: async () => {
-                                                                    const ok = await apiAction({
-                                                                        action: 'delete_booking',
-                                                                        id: modal.data.id,
-                                                                        user: user?.username
-                                                                    });
-                                                                    if (ok) {
-                                                                        setModal(null);
-                                                                        showToast('ลบรายการสำเร็จ', 'success');
-                                                                    }
-                                                                }
-                                                            });
-                                                        }}
-                                                        className="flex-1 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-sm bg-red-50 active:bg-red-100"
-                                                    >
-                                                        ลบ
-                                                    </button>
+                                                    <button onClick={() => setModal({ type: 'booking', data: modal.data })} className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm bg-slate-50">แก้ไข</button>
+                                                    <button onClick={() => {
+                                                        setConfirmDialog({
+                                                            msg: 'ยืนยันการลบรายการจองนี้?',
+                                                            onConfirm: async () => {
+                                                                const ok = await apiAction({ action: 'delete_booking', id: modal.data.id });
+                                                                if (ok) { setModal(null); showToast('ลบรายการสำเร็จ', 'success'); }
+                                                            }
+                                                        });
+                                                    }} className="flex-1 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-sm bg-red-50">ลบ</button>
                                                 </div>
                                             )}
                                         </div>
@@ -1128,276 +582,84 @@
                         </div>
                     )}
 
-                    {/* Pop-up แสดงวิธีการใช้งาน (แสดงเมื่อ Login สำเร็จครั้งแรก) */}
-                    {showWelcomeModal && user && (
-                        <div className="backdrop z-[300]">
-                            <div className="bg-white w-[90%] max-w-[450px] rounded-3xl p-6 shadow-2xl animate-pop relative overflow-hidden">
-                                <div className={`absolute top-0 left-0 w-full h-2 ${isAdmin ? 'bg-amber-500' : 'bg-red-600'}`}></div>
-                                <button onClick={() => setShowWelcomeModal(false)} className="btn-close-modern mt-1">
-                                    <Icons.X />
-                                </button>
-                                
-                                <div className="mt-2 mb-4">
-                                    <h3 className="text-xl font-bold text-slate-900">เข้าสู่ระบบสำเร็จ!</h3>
-                                    <p className="text-sm text-slate-500">ยินดีต้อนรับคุณ {(user.full_name || '').split(' ')[0]}</p>
-                                </div>
-
-                                <div className="text-sm text-slate-700 space-y-4 max-h-[55vh] overflow-y-auto pr-2">
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <p className="font-bold text-slate-800 mb-1 flex items-center gap-1"><Icons.Book /> วิธีการจองคิว:</p>
-                                        <p className="text-slate-600">แตะที่ช่องว่างในตาราง ให้ตรงกับวันที่และชื่อผู้ตรวจที่คุณต้องการ จากนั้นกรอกรายละเอียดโครงการและกดยืนยัน</p>
-                                    </div>
-
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                        <p className="font-bold text-slate-800 mb-1 flex items-center gap-1"><Icons.History /> การแก้ไข และ ลบงาน:</p>
-                                        <p className="text-slate-600">คุณสามารถคลิกที่คิวงานที่คุณเป็นคนจองไว้ เพื่อทำการ <b>"แก้ไข"</b> หรือ <b>"ลบ"</b> รายการจองนั้นได้ด้วยตนเองตลอดเวลา</p>
-                                    </div>
-
-                                    {isAdmin && (
-                                        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200">
-                                            <p className="font-bold text-amber-800 mb-1 flex items-center gap-1"><Icons.Alert /> สิทธิ์เฉพาะ Admin:</p>
-                                            <ul className="list-disc pl-5 text-amber-700 space-y-1">
-                                                <li>สามารถ <b>แก้ไข/ลบ</b> คิวงานของทุกคนในระบบได้</li>
-                                                <li>สามารถทำการ <b>จองคิวแทรก</b> ในวันหยุด (HOLIDAY) ได้</li>
-                                                <li>สามารถทำการ <b>จองคิวย้อนหลัง</b> ได้</li>
-                                                <li>มีปุ่ม <b>Export Excel</b> เพื่อดาวน์โหลดข้อมูลประจำเดือน</li>
-                                            </ul>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <button 
-                                    onClick={() => setShowWelcomeModal(false)} 
-                                    className="w-full mt-6 py-3.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 active:scale-[0.98] transition-all shadow-md"
-                                >
-                                    รับทราบ และเริ่มใช้งาน
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Modal คู่มือการใช้งาน (Manual) กดจากแถบเมนูด้านบน */}
+                    {/* Modal อื่นๆ */}
                     {showManual && (
                         <div className="backdrop">
                             <div className="modal-card p-6">
-                                <button onClick={() => setShowManual(false)} className="btn-close-modern">
-                                    <Icons.X />
-                                </button>
-                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">คู่มือการใช้งานระบบ</h3>
+                                <button onClick={() => setShowManual(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">คู่มือการใช้งาน</h3>
                                 <div className="text-sm text-slate-700 space-y-3">
-                                    <p><b>1. การเข้าสู่ระบบ:</b> จำเป็นต้องเข้าสู่ระบบก่อนจึงจะสามารถจองคิว หรือดูประวัติการจองของตนเองได้</p>
-                                    <p><b>2. การจองคิว:</b> เลือกวันที่และผู้ตรวจที่ต้องการจอง กดที่ช่องว่างเพื่อกรอกข้อมูล</p>
-                                    <p><b>3. การแก้ไข/ลบ:</b> กดที่คิวงานของตนเอง จะมีปุ่มให้แก้ไขหรือลบ (สิทธิ์นี้ทำได้เฉพาะเจ้าของคิวหรือผู้ดูแลระบบ)</p>
-                                    <p><b>4. วันหยุด:</b> ช่องตารางที่เป็นสีแดงคือวันหยุด ไม่สามารถจองคิวได้</p>
-                                    <p className="text-xs text-slate-500 mt-4 pt-2 border-t">* หากพบปัญหาการใช้งาน กรุณาติดต่อผู้ดูแลระบบ</p>
+                                    <p><b>1. การจอง:</b> แตะที่ช่องว่างในตารางให้ตรงวันที่และผู้ตรวจ</p>
+                                    <p><b>2. การแก้ไข/ลบ:</b> แตะที่คิวงานเดิม (เฉพาะเจ้าของงานหรือ Admin)</p>
+                                    <p><b>3. แผนที่:</b> ใส่ลิงก์ Google Maps ตอนจองเพื่อแสดงพิกัดงาน</p>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Modal ประวัติการทำรายการ (History) + ระบบค้นหา */}
                     {showHistory && (
                         <div className="backdrop">
                             <div className="modal-card p-6">
-                                <button onClick={() => setShowHistory(false)} className="btn-close-modern">
-                                    <Icons.X />
-                                </button>
-                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">ประวัติการจองของฉัน</h3>
-                                
-                                {/* ระบบค้นหาในหน้าประวัติ */}
-                                {user && myHistory.length > 0 && (
-                                    <div className="mb-4 relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                                            <Icons.Search />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            className="bg-slate-50 pl-10 pr-4 py-2 w-full text-sm border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 focus:bg-white transition"
-                                            placeholder="ค้นหาชื่อโครงการ หรือ Eq No..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                        />
-                                    </div>
-                                )}
-
-                                <div className="text-sm text-slate-700 space-y-3 max-h-[50vh] overflow-y-auto">
-                                    {!user ? (
-                                        <div className="text-center text-red-500 py-4 font-bold">กรุณาล็อกอินเพื่อดูประวัติการจอง</div>
-                                    ) : myHistory.length === 0 ? (
-                                        <div className="text-center text-slate-500 py-4 flex flex-col items-center">
-                                            <div className="spinner mb-2 border-t-slate-400" style={{width: '30px', height: '30px'}}></div>
-                                            กำลังโหลดประวัติ หรือ ไม่พบข้อมูล...
-                                        </div>
-                                    ) : (
-                                        myHistory
-                                            .filter(b => 
-                                                (b.site_name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
-                                                (b.equipment_no || '').toLowerCase().includes(searchQuery.toLowerCase())
-                                            )
-                                            .map((b, i) => (
-                                                <div key={i} className="border p-3 rounded-lg bg-slate-50">
-                                                    <div className="font-bold text-slate-800">{b.site_name} (Eq: {b.equipment_no})</div>
-                                                    <div className="text-xs text-slate-500 mt-1">วันที่จอง: {b.date.split('T')[0]} | ผู้ตรวจ: {b.inspector_name}</div>
-                                                </div>
-                                            ))
-                                    )}
+                                <button onClick={() => setShowHistory(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">ประวัติการจอง</h3>
+                                <div className="text-sm space-y-3 max-h-[60vh] overflow-y-auto">
+                                    {db.history.length === 0 ? <p className="text-center py-4 text-slate-400">ไม่พบประวัติการทำรายการ</p> : 
+                                        db.history.slice(0, 30).map((h, i) => (
+                                            <div key={i} className="border-b pb-2 text-[11px]">
+                                                <div className="font-bold text-slate-800">{h.site_name} (Eq: {h.equipment_no})</div>
+                                                <div className="text-slate-500">โดย {h.created_by} • {h.date}</div>
+                                            </div>
+                                        ))
+                                    }
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* Custom Alert Dialog */}
                     {alertMsg && (
-                        <div className="backdrop z-[400]">
-                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-red-600"></div>
-                                <div className="mx-auto w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
-                                    <Icons.Info />
-                                </div>
+                        <div className="backdrop z-[300]">
+                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop">
+                                <div className="mx-auto w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4"><Icons.Alert /></div>
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">แจ้งเตือน</h3>
-                                <p className="text-sm text-slate-600 mb-6 leading-relaxed">{alertMsg}</p>
-                                <button 
-                                    onClick={() => setAlertMsg(null)}
-                                    className="w-full py-3.5 bg-slate-100 text-slate-800 rounded-xl font-bold hover:bg-slate-200 active:scale-[0.98] transition-all"
-                                >
-                                    ตกลง
-                                </button>
+                                <p className="text-sm text-slate-600 mb-6">{alertMsg}</p>
+                                <button onClick={() => setAlertMsg(null)} className="w-full py-3 bg-slate-100 rounded-xl font-bold">ตกลง</button>
                             </div>
                         </div>
                     )}
 
-                    {/* Custom Confirm Dialog */}
                     {confirmDialog && (
-                        <div className="backdrop z-[400]">
-                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop relative overflow-hidden">
-                                <div className="absolute top-0 left-0 w-full h-1 bg-amber-500"></div>
-                                <div className="mx-auto w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4">
-                                    <Icons.Alert />
-                                </div>
+                        <div className="backdrop z-[300]">
+                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop">
+                                <div className="mx-auto w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4"><Icons.Alert /></div>
                                 <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการทำรายการ</h3>
-                                <p className="text-sm text-slate-600 mb-6 leading-relaxed">{confirmDialog.msg}</p>
+                                <p className="text-sm text-slate-600 mb-6">{confirmDialog.msg}</p>
                                 <div className="flex gap-3">
-                                    <button 
-                                        onClick={() => setConfirmDialog(null)}
-                                        className="flex-1 py-3.5 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 active:scale-[0.98] transition-all"
-                                    >
-                                        ยกเลิก
-                                    </button>
-                                    <button 
-                                        onClick={() => {
-                                            confirmDialog.onConfirm();
-                                            setConfirmDialog(null);
-                                        }}
-                                        className="flex-1 py-3.5 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 active:scale-[0.98] transition-all shadow-md shadow-red-200"
-                                    >
-                                        ยืนยัน
-                                    </button>
+                                    <button onClick={() => setConfirmDialog(null)} className="flex-1 py-3 bg-slate-100 rounded-xl font-bold">ยกเลิก</button>
+                                    <button onClick={() => { confirmDialog.onConfirm(); setConfirmDialog(null); }} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold">ยืนยัน</button>
                                 </div>
                             </div>
                         </div>
                     )}
 
-                    {/* ล็อกอิน Modal */}
                     {showLogin && (
-                        <LoginComponent
-                            onClose={() => setShowLogin(false)}
-                            onLogin={(u) => {
-                                setUser(u);
-                                setShowLogin(false);
-                                setShowWelcomeModal(true); 
-                            }}
-                            apiAction={apiAction}
-                        />
+                        <div className="backdrop">
+                            <div className="modal-card p-6">
+                                <button onClick={() => setShowLogin(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h2 className="text-2xl font-bold text-slate-800 text-center mb-6">เข้าสู่ระบบ</h2>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const fd = new FormData(e.target);
+                                    const u = db.users.find(x => x.username === fd.get('username') && String(x.password) === String(fd.get('password')));
+                                    if (u) { setUser(u); setShowLogin(false); showToast('เข้าสู่ระบบสำเร็จ'); }
+                                    else { setAlertMsg('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); }
+                                }} className="space-y-4">
+                                    <input name="username" required placeholder="Username" className="bg-slate-50" />
+                                    <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
+                                    <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg">LOGIN</button>
+                                </form>
+                            </div>
+                        </div>
                     )}
-                </div>
-            );
-        };
-
-        // LoginComponent ถูกแก้ไขให้ตรวจสอบผ่าน API เพื่อความปลอดภัย (ไม่เก็บ Users ไว้ในหน้าเว็บ)
-        const LoginComponent = ({ onClose, onLogin, apiAction }) => {
-            const [mode, setMode] = useState('login');
-            const [loading, setLoading] = useState(false);
-
-            return (
-                <div className="backdrop z-[150]">
-                    <div className="modal-card p-6">
-                        <button onClick={onClose} className="btn-close-modern">
-                            <Icons.X />
-                        </button>
-                        <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">
-                            {mode === 'signup' ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
-                        </h2>
-
-                        {mode === 'login' ? (
-                            <form
-                                onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    setLoading(true);
-                                    const fd = new FormData(e.target);
-                                    
-                                    // ตรวจสอบรหัสผ่านกับเซิร์ฟเวอร์โดยตรง
-                                    const res = await apiAction({
-                                        action: 'login',
-                                        username: fd.get('username'),
-                                        password: fd.get('password')
-                                    });
-                                    
-                                    setLoading(false);
-                                    if (res && res.status === 'ok') {
-                                        onLogin(res.user);
-                                    }
-                                }}
-                                className="space-y-4"
-                            >
-                                <input name="username" required placeholder="Username" className="bg-slate-50" />
-                                <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
-                                <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg transition active:scale-[0.98] ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700'}`}>
-                                    {loading ? 'กำลังตรวจสอบ...' : 'LOGIN'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setMode('signup')}
-                                    className="w-full text-center text-slate-500 text-sm mt-4 underline hover:text-slate-800"
-                                >
-                                    สมัครสมาชิก
-                                </button>
-                            </form>
-                        ) : (
-                            <form
-                                onSubmit={async (e) => {
-                                    e.preventDefault();
-                                    setLoading(true);
-                                    const fd = new FormData(e.target);
-                                    const res = await apiAction({
-                                        action: 'signup',
-                                        ...Object.fromEntries(fd)
-                                    });
-                                    setLoading(false);
-                                    if (res && res.status === 'ok') {
-                                        // apiAction จะไม่แจ้งเตือน 'ok' ให้เราแจ้งเอง
-                                        alert('ส่งคำขอสมัครสมาชิกเรียบร้อยแล้ว กรุณารอ Admin อนุมัติสิทธิ์การใช้งานครับ');
-                                        setMode('login');
-                                    }
-                                }}
-                                className="space-y-3"
-                            >
-                                <input name="full_name" required placeholder="ชื่อ-นามสกุล" className="bg-slate-50" />
-                                <input name="email" required placeholder="Email (@schindler.com)" className="bg-slate-50" />
-                                <input name="username" required placeholder="Username" className="bg-slate-50" />
-                                <input name="password" required type="password" placeholder="Password" className="bg-slate-50" />
-                                <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg mt-2 transition active:scale-[0.98] ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700'}`}>
-                                    {loading ? 'กำลังส่งข้อมูล...' : 'ยืนยันการสมัคร'}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setMode('login')}
-                                    className="w-full text-center text-slate-500 text-sm mt-2 hover:text-slate-800"
-                                >
-                                    กลับไปหน้าล็อกอิน
-                                </button>
-                            </form>
-                        )}
-                    </div>
                 </div>
             );
         };

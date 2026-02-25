@@ -389,23 +389,18 @@
             Download: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         };
 
-         // ลิงก์ iframe Google Maps แก้ไขให้แสดงผลสถานที่จริงได้ถูกต้อง
+        // ลิงก์ iframe Google Maps แก้ไขใหม่ให้แสดงแผนที่จริง
         const getMapEmbedUrl = (link) => {
             if (!link) return null;
             try {
-                // ค้นหาพิกัด ละติจูด,ลองจิจูด จาก link (ถ้าก๊อปปี้มาจากหน้าเว็บเบราว์เซอร์)
+                // เช็คว่ามีพิกัด ละติจูด,ลองจิจูด หรือไม่
                 const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
                 const match = link.match(regex);
-                
-                // กรณีพบพิกัด ให้นำพิกัดมาสร้างแผนที่
                 if (match) {
                     return `https://maps.google.com/maps?q=${match[1]},${match[2]}&hl=th&z=15&output=embed`;
                 }
-                
-                // กรณีไม่พบพิกัด (เช่น เป็นชื่อสถานที่ หรือ Short link แบบ goo.gl) 
-                // ให้ส่งค่าลิงก์นั้นเป็น Query ค้นหาแทน
+                // ถ้าเป็นลิงก์ชื่อสถานที่ปกติ
                 return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=15&output=embed`;
-                
             } catch (e) {
                 return null;
             }

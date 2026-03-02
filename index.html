@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, viewport-fit=cover">
+    <title>SAIS Schedule</title>
+    
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #D0021B;
+            --header-bg: #1e293b;
+            --border-color: #cbd5e1;
+            --safe-top: env(safe-area-inset-top);
+            --safe-bottom: env(safe-area-inset-bottom);
+        }
+
+        html, body, #root { height: 100%; width: 100%; margin: 0; overflow: hidden; }
+        body { font-family: 'Sarabun', sans-serif; background-color: #f1f5f9; -webkit-font-smoothing: antialiased; }
+
+        .app-container { height: 100%; display: flex; flex-direction: column; background: white; }
+        .main-header {
+            color: white; padding-top: max(4px, var(--safe-top)); padding-bottom: 4px;
+            padding-left: 12px; padding-right: 12px; height: 45px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 60; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+
+        .nav-bar {
+            background: white; padding: 4px 12px; border-bottom: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; z-index: 50;
+        }
+
+        .grid-container { flex-grow: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .grid-wrapper { flex-grow: 1; overflow: auto; position: relative; -webkit-overflow-scrolling: touch; }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: 50px repeat(var(--col-count), minmax(110px, 1fr));
+            grid-template-rows: 35px repeat(16, minmax(0, 1fr));
+            height: 100%; min-width: 100%; 
+        }
+
+        .sticky-corner { position: sticky; top: 0; left: 0; z-index: 40; background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
+        .sticky-top { position: sticky; top: 0; z-index: 30; background: #1e293b; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid #334155; border-bottom: 1px solid #334155; }
+        .sticky-left { position: sticky; left: 0; z-index: 20; background: white; border-right: 2px solid #94a3b8; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+        .grid-cell { border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); position: relative; background: white; padding: 1px; display: flex; align-items: stretch; }
+
+        .is-today-row { 
+            background-color: #93c5fd !important; 
+            border-bottom: 1px solid #60a5fa !important;
+            border-right: 1px solid #60a5fa !important;
+        }
+
+        /* คลาสแยกสีประเภทงาน (ข้อ 5) และสีพื้นที่ (ข้อ 3) */
+        .card-type-default { background-color: #e2e8f0; color: #1e293b; } /* สีเทา สำหรับ New, MOD */
+        .card-type-temp { background-color: #fef08a; color: #854d0e; } /* สีเหลือง สำหรับ temporary power supply */
+        .card-type-builder { background-color: #eab308; color: #713f12; } /* สีเหลืองเข้ม สำหรับ builder lift */
+        .area-upcountry { border-left: 6px solid #ec4899 !important; } /* สีชมพู สำหรับต่างจังหวัด */
+        .area-bkk { border-left: 3px solid #64748b; } /* เส้นขอบปกติสำหรับ กทม. */
+        .task-content { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; overflow: hidden; cursor: pointer; border-radius: 4px; }
+        .text-line-1 { font-size: 11px; font-weight: 700; line-height: 1.1; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .text-line-2 { font-size: 10px; font-weight: 400; line-height: 1.1; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0.8; }
+
+        .is-sunday-col { background-color: #D0021B !important; color: white !important; border-right: 1px solid #991b1b; }
+        .is-holiday-cell { background-color: #D0021B !important; color: white !important; }
+        .holiday-label-new { font-size: 10px; font-weight: 900; color: rgba(255,255,255,0.8); display: flex; align-items: center; justify-content: center; width: 100%; }
+
+        .btn-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255,255,255,0.15); color: white; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.1); }
+        .btn-close-modern { position: absolute; top: 12px; right: 12px; width: 36px; height: 36px; background: #f1f5f9; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #64748b; border: 1px solid #e2e8f0; cursor: pointer; z-index: 60; }
+
+        .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.65); backdrop-filter: blur(4px); z-index: 100; display: flex; align-items: center; justify-content: center; }
+        .modal-card { background: white; width: 95%; max-width: 450px; border-radius: 24px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.4); display: flex; flex-direction: column; max-height: 90vh; position: relative; }
+        
+        .animate-pop { animation: pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes pop { 0% { transform: scale(0.9); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        input, select, textarea { font-size: 16px !important; border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; width: 100%; outline: none; color: #0f172a; font-family: 'Sarabun'; }
+        .map-preview { width: 100%; height: 150px; border-radius: 12px; overflow: hidden; margin-top: 10px; border: 1px solid #e2e8f0; }
+        
+        /* สไตล์สำหรับ Checkbox งาน Admin (ข้อ 2) */
+        .admin-check-item { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #475569; }
+        .admin-check-item input[type="checkbox"] { width: 18px; height: 18px; accent-color: #D0021B; border-radius: 4px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+        
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyliEBL79vR4dgUB4GTkIkDbhHsPF1p7br8K-42_PsddRKOYNZOUx75Cmdk1Mn1GoR5/exec"; 
+        const ADMIN_USERNAME = "jiraphong2227";
+
+        const getLocalDateString = (dateObj) => {
+            const year = dateObj.getFullYear();
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        };
+
+        // ฟังก์ชันแปลงแผนที่ (แก้ปัญหาข้อ 6) ให้รับลิงก์ทุกรูปแบบและแสดงหมุดเสมอ
+        const getMapEmbedUrl = (link) => {
+            if (!link) return null;
+            try {
+                // ถ้ามีพิกัดในลิงก์ ดึงออกมาใช้
+                const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+                const match = link.match(regex);
+                if (match) {
+                    return `https://maps.google.com/maps?q=${match[1]},${match[2]}&hl=th&z=15&output=embed`;
+                }
+                // ถ้าเป็นลิงก์ทั่วไป (รวมถึง http://googleusercontent.com/...) 
+                // ใช้ตัวแปร q= เพื่อสั่งให้ Google Maps ปักหมุดตรงคำค้นหาหรือลิงก์นั้นๆ เสมอ
+                return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=15&output=embed`;
+            } catch (e) {
+                return null;
+            }
+        };
+
+        const Icons = {
+            Book: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+            History: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            User: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            Login: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>,
+            X: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
+            ChevronLeft: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>,
+            ChevronRight: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>,
+            Check: () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>,
+            Alert: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+            Info: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+            MapPin: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+            Clock: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            FileCheck: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 16 12"/></svg>,
+            MessageSquare: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        };
+        const App = () => {
+            const [db, setDb] = useState({ bookings: [], users: [], history: [], inspectors: [] });
+            const [user, setUser] = useState(null); 
+            const [loading, setLoading] = useState(false);
+            const [modal, setModal] = useState(null); 
+            const [showLogin, setShowLogin] = useState(false);
+            const [showManual, setShowManual] = useState(false);
+            const [showHistory, setShowHistory] = useState(false);
+            
+            const [alertMsg, setAlertMsg] = useState(null);
+            const [confirmDialog, setConfirmDialog] = useState(null);
+            const [toast, setToast] = useState(null);
+            
+            const [currentDate, setCurrentDate] = useState(new Date());
+            
+            // ตั้งค่าหน้าเริ่มต้นตามวันที่ปัจจุบัน (ถ้าเกินวันที่ 15 ให้แสดงครึ่งเดือนหลังอัตโนมัติ)
+            const [period, setPeriod] = useState(new Date().getDate() > 15 ? 1 : 0); 
+
+            // State สำหรับตัวเลือกพื้นที่ตรวจ
+            const [areaSelection, setAreaSelection] = useState('กรุงเทพและปริมณฑล');
+
+            // State สำหรับประเภทงานตรวจ (ข้อ 5)
+            const [jobTypeSelection, setJobTypeSelection] = useState('New');
+
+            // State สำหรับนาฬิกาเรียลไทม์
+            const [currentTime, setCurrentTime] = useState(new Date());
+
+            const scrollRef = useRef(null);
+
+            // ตรวจสอบสิทธิ์ Admin (อ้างอิงจาก username หรือ role)
+            const isAdmin = useMemo(
+                () => user?.username === ADMIN_USERNAME || user?.role === 'admin',
+                [user]
+            );
+
+            // Effect สำหรับอัปเดตนาฬิกาทุก 1 วินาที
+            useEffect(() => {
+                const clockTimer = setInterval(() => {
+                    setCurrentTime(new Date());
+                }, 1000);
+                return () => clearInterval(clockTimer);
+            }, []);
+
+            // Effect สำหรับดึงข้อมูลอัตโนมัติ
+            useEffect(() => {
+                fetchData();
+                const timer = setInterval(() => {
+                    if (!modal && !showLogin && !showManual && !showHistory && !confirmDialog && !alertMsg) {
+                        fetchData();
+                    }
+                }, 180000); 
+                return () => clearInterval(timer);
+            }, [modal, showLogin, showManual, showHistory, confirmDialog, alertMsg]);
+
+            const fetchData = async () => {
+                if (!SCRIPT_URL) return;
+                try {
+                    const controller = new AbortController();
+                    const timeout = setTimeout(() => controller.abort(), 15000);
+                    const res = await fetch(SCRIPT_URL, { signal: controller.signal });
+                    clearTimeout(timeout);
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    const data = await res.json();
+                    setDb({
+                        bookings: data.bookings || [],
+                        users: data.users || [],
+                        history: data.history || [],
+                        inspectors: data.inspectors || []
+                    });
+                } catch (e) { console.error("Fetch Error:", e); }
+            };
+
+            const apiAction = async (payload) => {
+                setLoading(true);
+                try {
+                    const res = await fetch(SCRIPT_URL, { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(payload) 
+                    });
+                    if (!res.ok) throw new Error('Network response was not ok');
+                    const result = await res.json();
+                    setLoading(false);
+                    if (result.status === 'ok') { 
+                        await fetchData(); 
+                        return true; 
+                    } else { 
+                        setAlertMsg('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ')); 
+                        return false; 
+                    }
+                } catch (e) { 
+                    setLoading(false); 
+                    setAlertMsg('การเชื่อมต่อขัดข้อง'); 
+                    return false; 
+                }
+            };
+
+            const showToast = (msg, type = 'success') => {
+                setToast({ msg, type });
+                setTimeout(() => setToast(null), 3000);
+            };
+            const changePeriod = (dir) => {
+                let newDate = new Date(currentDate);
+                if (dir === 'next') {
+                    if (period === 0) {
+                        setPeriod(1);
+                    } else {
+                        setPeriod(0);
+                        newDate.setMonth(newDate.getMonth() + 1);
+                        setCurrentDate(newDate);
+                    }
+                } else {
+                    if (period === 1) {
+                        setPeriod(0);
+                    } else {
+                        setPeriod(1);
+                        newDate.setMonth(newDate.getMonth() - 1);
+                        setCurrentDate(newDate);
+                    }
+                }
+            };
+
+            const todayLocalString = getLocalDateString(new Date());
+
+            const daysInView = useMemo(() => {
+                const year = currentDate.getFullYear();
+                const month = currentDate.getMonth();
+                const lastDay = new Date(year, month + 1, 0).getDate();
+                const start = period === 0 ? 1 : 16;
+                const end = period === 0 ? 15 : lastDay;
+                const days = [];
+
+                for (let i = 0; i < 16; i++) {
+                    const d = start + i;
+                    if (d <= end) {
+                        const date = new Date(year, month, d);
+                        const localDateStr = getLocalDateString(date);
+
+                        const isDbHoliday = db.bookings.some(
+                            b => b.date && b.date.split('T')[0] === localDateStr && b.inspector_name === 'SYSTEM_HOLIDAY'
+                        );
+
+                        days.push({
+                            full: localDateStr,
+                            day: d,
+                            weekday: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                            isSunday: date.getDay() === 0,
+                            isHoliday: isDbHoliday,
+                            isToday: localDateStr === todayLocalString,
+                            isEmpty: false
+                        });
+                    } else {
+                        days.push({ isEmpty: true });
+                    }
+                }
+                return days;
+            }, [currentDate, period, db.bookings]);
+
+            const handleBookingSubmit = async (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const data = Object.fromEntries(fd);
+
+                if (!user?.username) {
+                    setAlertMsg('กรุณาเข้าสู่ระบบก่อนทำรายการ');
+                    return;
+                }
+
+                if (!/^\d{10}$/.test(data.tel)) {
+                    setAlertMsg('กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก (ตัวเลขติดกัน เช่น 0812345678)');
+                    return;
+                }
+                
+                // แปลงเป็น String เสมอกันเหนียว
+                const formattedTel = String(data.tel); 
+
+                // จัดการข้อมูลพื้นที่ตรวจ
+                let finalArea = areaSelection;
+                if (areaSelection === 'other') {
+                    finalArea = fd.get('custom_area') || 'ไม่ระบุ';
+                }
+
+                const isDup = db.bookings.some(
+                    b =>
+                        b.date &&
+                        b.date.split('T')[0] === modal.data.date &&
+                        b.equipment_no === data.equipment_no &&
+                        b.id !== modal.data.id &&
+                        b.inspector_name !== 'SYSTEM_HOLIDAY'
+                );
+
+                if (isDup) {
+                    setAlertMsg(`ขออภัย: เลข Eq No. ${data.equipment_no} ถูกจองไปแล้วในวันนี้`);
+                    return;
+                }
+
+                const payload = {
+                    action: modal.data.id ? 'update_booking' : 'create_booking',
+                    ...data, 
+                    tel: formattedTel, 
+                    area: finalArea,
+                    job_type: jobTypeSelection, // ส่งประเภทงาน (ข้อ 5)
+                    time_slot: '-',
+                    id: modal.data.id,
+                    inspector_name: modal.data.inspector_name,
+                    date: modal.data.date,
+                    user: user.username
+                };
+
+                // จัดการฟังก์ชัน Admin ตรวจเอกสาร (ข้อ 2)
+                if (isAdmin) {
+                    payload.layout_doc = data.layout_doc ? 'true' : 'false';
+                    payload.wiring_doc = data.wiring_doc ? 'true' : 'false';
+                    payload.precheck_doc = data.precheck_doc ? 'true' : 'false';
+                } else if (modal.data.id) {
+                    // ถ้าไม่ใช่ Admin และเป็นการอัปเดตงาน ให้คงค่าเอกสารเดิมไว้
+                    payload.layout_doc = modal.data.layout_doc || 'false';
+                    payload.wiring_doc = modal.data.wiring_doc || 'false';
+                    payload.precheck_doc = modal.data.precheck_doc || 'false';
+                } else {
+                    // ถ้าสร้างใหม่และไม่ใช่ Admin กำหนดให้เป็น false เริ่มต้น
+                    payload.layout_doc = 'false';
+                    payload.wiring_doc = 'false';
+                    payload.precheck_doc = 'false';
+                }
+
+                const ok = await apiAction(payload);
+                if (ok) {
+                    setModal(null);
+                    setAreaSelection('กรุงเทพและปริมณฑล');
+                    setJobTypeSelection('New');
+                    showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกการจองสำเร็จ!', 'success');
+                }
+            };
+            return (
+                <div className="app-container">
+                    {/* แจ้งเตือน Pop-up */}
+                    {toast && (
+                        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl bg-white flex items-center gap-3 animate-pop font-bold text-sm">
+                            {toast.type === 'success' ? <Icons.Check /> : <Icons.Alert />} {toast.msg}
+                        </div>
+                    )}
+
+                    {/* Header */}
+                    <header className={`main-header ${user ? 'bg-slate-800' : 'bg-red-600'}`}>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-bold tracking-wide">SAIS BOOKING</h1>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button className="btn-icon" onClick={() => setShowManual(true)} title="คู่มือ">
+                                <Icons.Book />
+                            </button>
+                            <button className="btn-icon" onClick={() => setShowHistory(true)} title="ประวัติ">
+                                <Icons.History />
+                            </button>
+                            {user ? (
+                                <button
+                                    className="ml-1 bg-white text-slate-800 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all"
+                                    onClick={() => setUser(null)}
+                                >
+                                    {(user.full_name || '').split(' ')[0]} <Icons.Login />
+                                </button>
+                            ) : (
+                                <button
+                                    className="ml-1 bg-white text-red-700 px-4 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 shadow-sm active:scale-95 transition-all"
+                                    onClick={() => setShowLogin(true)}
+                                >
+                                    LOGIN <Icons.User />
+                                </button>
+                            )}
+                        </div>
+                    </header>
+
+                    {/* แถบนำทาง (Navbar) เปลี่ยนเดือน/ครึ่งเดือน */}
+                    <div className="grid-container">
+                        <div className="nav-bar">
+                            <div className="flex justify-between items-center w-full">
+                                <button
+                                    onClick={() => changePeriod('prev')}
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition-all"
+                                >
+                                    <Icons.ChevronLeft /> ย้อนกลับ
+                                </button>
+                                
+                                <div className="text-center font-bold text-slate-800 text-sm">
+                                    {period === 0 
+                                        ? "1-15 " 
+                                        : `16-${new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()} `
+                                    } 
+                                    {currentDate.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })}
+                                </div>
+
+                                <button
+                                    onClick={() => changePeriod('next')}
+                                    className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600 flex items-center gap-1 active:bg-slate-200 transition-all"
+                                >
+                                    ถัดไป <Icons.ChevronRight />
+                                </button>
+                            </div>
+                        </div>
+                        {/* ตารางคิวงาน */}
+                        <div className="grid-wrapper" ref={scrollRef}>
+                            <div
+                                className="calendar-grid"
+                                style={{ '--col-count': db.inspectors.length || 1 }}
+                            >
+                                <div className="sticky-corner text-[10px] font-bold">DATE</div>
+
+                                {db.inspectors.map((ins, i) => (
+                                    <div key={i} className="sticky-top">
+                                        <div className="font-bold truncate w-full text-center px-1 text-[11px]">
+                                            {ins.name}
+                                        </div>
+                                        <div className="text-[9px] font-bold uppercase text-slate-300">
+                                            {ins.short || ins.name.substring(0,3)}
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {daysInView.map((d, index) => (
+                                    <React.Fragment key={index}>
+                                        {/* หัวแถบวันที่ด้านซ้าย */}
+                                        <div
+                                            className={`sticky-left ${
+                                                d.isSunday ? 'is-sunday-col' : ''
+                                            } ${d.isToday ? 'is-today-row' : ''}`}
+                                        >
+                                            {!d.isEmpty && (
+                                                <>
+                                                    <span className="leading-none font-bold text-sm">
+                                                        {d.day}
+                                                    </span>
+                                                    <span className="text-[9px] mt-0.5 font-bold uppercase opacity-80">
+                                                        {d.weekday}
+                                                    </span>
+                                                </>
+                                            )}
+                                        </div>
+
+                                        {/* ช่องข้อมูลในตาราง */}
+                                        {!d.isEmpty &&
+                                            db.inspectors.map((ins, idx) => {
+                                                const isHoliday = d.isHoliday || d.isSunday;
+
+                                                const task = db.bookings.find(
+                                                    b =>
+                                                        b.date &&
+                                                        b.date.split('T')[0] === d.full &&
+                                                        b.inspector_name === ins.name
+                                                );
+
+                                                const hasTask = !!task && task.inspector_name !== 'SYSTEM_HOLIDAY';
+
+                                                // ข้อ 5: แยกสีตามประเภทงาน
+                                                let cardTypeClass = 'card-type-default'; // ค่าเริ่มต้นสีเทา (New, MOD)
+                                                if (hasTask) {
+                                                    if (task.job_type === 'temporary power supply') cardTypeClass = 'card-type-temp';
+                                                    if (task.job_type === 'builder lift') cardTypeClass = 'card-type-builder';
+                                                }
+
+                                                // ข้อ 3: แยกสีขอบตามพื้นที่ (ต่างจังหวัดสีชมพู)
+                                                let areaClass = '';
+                                                if (hasTask) {
+                                                    if (task.area && task.area !== 'กรุงเทพและปริมณฑล' && task.area !== 'ไม่ระบุ') {
+                                                        areaClass = 'area-upcountry';
+                                                    } else {
+                                                        areaClass = 'area-bkk';
+                                                    }
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={idx}
+                                                        className={`grid-cell cursor-pointer hover:bg-slate-50 ${
+                                                            isHoliday && !hasTask
+                                                                ? 'is-holiday-cell'
+                                                                : ''
+                                                        } ${d.isToday && !(isHoliday && !hasTask) ? 'is-today-row' : ''}`}
+                                                        onClick={() => {
+                                                            if (hasTask) {
+                                                                setModal({ type: 'detail', data: task });
+                                                            } else {
+                                                                if (isHoliday && !isAdmin) {
+                                                                    setAlertMsg('วันหยุดระบบไม่เปิดให้จองคิวครับ');
+                                                                    return;
+                                                                }
+                                                                if (!user) {
+                                                                    setAlertMsg('กรุณาเข้าสู่ระบบก่อนจองคิวครับ');
+                                                                    setShowLogin(true);
+                                                                    return;
+                                                                }
+                                                                if (d.full < todayLocalString && !isAdmin) {
+                                                                    setAlertMsg('ไม่สามารถจองคิวงานย้อนหลังได้ครับ');
+                                                                    return;
+                                                                }
+
+                                                                setModal({
+                                                                    type: 'booking',
+                                                                    data: {
+                                                                        date: d.full,
+                                                                        inspector_name: ins.name
+                                                                    }
+                                                                });
+                                                            }
+                                                        }}
+                                                    >
+                                                        {isHoliday && !hasTask && (
+                                                            <div className="holiday-label-new">
+                                                                {d.isSunday ? '' : 'HOLIDAY'}
+                                                            </div>
+                                                        )}
+
+                                                        {hasTask && (
+                                                            <div
+                                                                className={`task-content ${cardTypeClass} ${areaClass}`}
+                                                            >
+                                                                <div className="text-line-1">
+                                                                    {task.equipment_no} <span className="font-normal opacity-70">/</span> {task.unit_no}
+                                                                </div>
+                                                                <div className="text-line-2">
+                                                                    {task.site_name}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {/* แสดงนาฬิกาเรียลไทม์ ด้านล่างสุดของตาราง */}
+                        <div className="bg-slate-800 text-white text-center py-2.5 text-sm font-bold flex items-center justify-center gap-2 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                            <Icons.Clock />
+                            เวลาปัจจุบัน: {currentTime.toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })} {currentTime.toLocaleTimeString('th-TH')} น.
+                        </div>
+                    </div>
+                    {/* Modal สำหรับเพิ่ม/แก้ไขคิวงาน หรือ ดูรายละเอียด */}
+                    {modal && (
+                        <div className="backdrop z-[150]">
+                            <div className="modal-card">
+                                <button onClick={() => setModal(null)} className="btn-close-modern">
+                                    <Icons.X />
+                                </button>
+                                <div className="p-6 overflow-y-auto">
+                                    <div className="mb-6 border-b pb-4 pr-10">
+                                        <h3 className="text-xl font-bold text-slate-900">
+                                            {modal.type === 'booking' ? 'จองคิวตรวจ' : 'รายละเอียด'}
+                                        </h3>
+                                        <div className="text-xs text-red-600 font-bold uppercase mt-1">
+                                            {modal.data.inspector_name} • {modal.data.date ? modal.data.date.split('T')[0] : ''}
+                                        </div>
+                                    </div>
+
+                                    {modal.type === 'booking' ? (
+                                        <form onSubmit={handleBookingSubmit} className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {/* เลือกพื้นที่ตรวจ */}
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">พื้นที่ตรวจ (Area)</label>
+                                                    <select 
+                                                        value={areaSelection} 
+                                                        onChange={(e) => setAreaSelection(e.target.value)}
+                                                        className="bg-slate-50"
+                                                    >
+                                                        <option value="กรุงเทพและปริมณฑล">กทม. และปริมณฑล</option>
+                                                        <option value="เชียงใหม่">เชียงใหม่</option>
+                                                        <option value="ภูเก็ต">ภูเก็ต</option>
+                                                        <option value="other">จังหวัดอื่นๆ</option>
+                                                    </select>
+                                                </div>
+                                                {/* ข้อ 5: เลือกประเภทงาน */}
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">ประเภทงาน (Job Type)</label>
+                                                    <select 
+                                                        value={jobTypeSelection} 
+                                                        onChange={(e) => setJobTypeSelection(e.target.value)}
+                                                        className="bg-slate-50"
+                                                    >
+                                                        <option value="New">New</option>
+                                                        <option value="MOD">MOD</option>
+                                                        <option value="temporary power supply">Temp. Power Supply</option>
+                                                        <option value="builder lift">Builder Lift</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            {areaSelection === 'other' && (
+                                                <div>
+                                                    <input name="custom_area" required placeholder="พิมพ์ชื่อจังหวัดที่นี่..." className="bg-slate-50" />
+                                                </div>
+                                            )}
+
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500">Project Name</label>
+                                                <input name="site_name" defaultValue={modal.data.site_name} required placeholder="ชื่อโครงการ" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">Eq No.</label>
+                                                    <input name="equipment_no" defaultValue={modal.data.equipment_no} required placeholder="XXXX" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">Unit</label>
+                                                    <input name="unit_no" defaultValue={modal.data.unit_no} required placeholder="A1" />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500">Google Map Link</label>
+                                                <input name="map_link" defaultValue={modal.data.map_link} placeholder="วางลิงก์ Google Map ที่นี่" />
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">Foreman</label>
+                                                    <input name="foreman" defaultValue={modal.data.foreman} placeholder="ชื่อผู้ควบคุมงาน" />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-bold text-slate-500">Tel</label>
+                                                    <input 
+                                                        name="tel" 
+                                                        defaultValue={modal.data.tel ? String(modal.data.tel).padStart(10, '0') : ''} 
+                                                        type="tel" 
+                                                        pattern="\d{10}" 
+                                                        maxLength="10" 
+                                                        required 
+                                                        title="กรุณากรอกเบอร์โทรศัพท์ตัวเลข 10 หลัก (ติดกัน)"
+                                                        placeholder="เบอร์โทร 10 หลัก" 
+                                                    />
+                                                </div>
+                                            </div>
+                                            
+                                            {/* ข้อ 4: ช่องหมายเหตุ */}
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-500">หมายเหตุ (Notes)</label>
+                                                <textarea name="notes" defaultValue={modal.data.notes} rows="2" placeholder="ระบุรายละเอียดเพิ่มเติม..." className="bg-slate-50 resize-none"></textarea>
+                                            </div>
+
+                                            {/* ข้อ 2: ระบบตรวจเอกสารของ Admin */}
+                                            {isAdmin && (
+                                                <div className="p-3 bg-red-50 border border-red-100 rounded-xl mt-2">
+                                                    <div className="text-xs font-bold text-red-800 mb-2 flex items-center gap-1"><Icons.FileCheck /> เฉพาะ Admin: ตรวจสอบเอกสาร</div>
+                                                    <div className="flex flex-col gap-2">
+                                                        <label className="admin-check-item">
+                                                            <input type="checkbox" name="layout_doc" defaultChecked={modal.data.layout_doc === 'true'} /> Layout Drawings
+                                                        </label>
+                                                        <label className="admin-check-item">
+                                                            <input type="checkbox" name="wiring_doc" defaultChecked={modal.data.wiring_doc === 'true'} /> Wiring Diagram
+                                                        </label>
+                                                        <label className="admin-check-item">
+                                                            <input type="checkbox" name="precheck_doc" defaultChecked={modal.data.precheck_doc === 'true'} /> Pre-check
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <button disabled={loading} className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all ${loading ? 'bg-slate-400 text-white' : 'bg-red-600 text-white active:bg-red-700'}`}>
+                                                {loading ? 'กำลังบันทึกข้อมูล...' : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')}
+                                            </button>
+                                        </form>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <h2 className="text-xl font-bold text-slate-900">{modal.data.site_name || '-'}</h2>
+                                            
+                                            <div className="flex gap-2 flex-wrap">
+                                                {modal.data.job_type && (
+                                                    <div className="px-3 py-1 bg-slate-800 text-white text-xs font-bold rounded-lg shadow-sm">
+                                                        📌 {modal.data.job_type}
+                                                    </div>
+                                                )}
+                                                {modal.data.area && (
+                                                    <div className="px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold rounded-lg">
+                                                        📍 {modal.data.area}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 grid grid-cols-2 gap-y-4 text-sm">
+                                                <div><span className="text-xs text-slate-400 block font-bold">Eq No.</span><b>{modal.data.equipment_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Unit</span><b>{modal.data.unit_no || '-'}</b></div>
+                                                <div><span className="text-xs text-slate-400 block font-bold">Foreman</span><b>{modal.data.foreman || '-'}</b></div>
+                                                {/* ข้อ 1: แสดงเบอร์โทรพร้อมเติมเลข 0 ด้านหน้า */}
+                                                <div><span className="text-xs text-slate-400 block font-bold">Tel</span>
+                                                    {modal.data.tel ? 
+                                                        <a href={`tel:${String(modal.data.tel).padStart(10, '0')}`} className="text-blue-600 font-bold">
+                                                            {String(modal.data.tel).padStart(10, '0')}
+                                                        </a> 
+                                                    : <b>-</b>}
+                                                </div>
+                                                
+                                                {/* ข้อ 4: แสดงหมายเหตุ */}
+                                                {modal.data.notes && (
+                                                    <div className="col-span-2 mt-2 pt-3 border-t border-slate-200">
+                                                        <span className="text-xs text-slate-400 block font-bold flex items-center gap-1"><Icons.MessageSquare /> หมายเหตุ</span>
+                                                        <p className="text-slate-700 mt-1 whitespace-pre-wrap text-sm leading-relaxed">{modal.data.notes}</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* ข้อ 2: แสดงสถานะการตรวจเอกสารของ Admin */}
+                                            <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                                <div className="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1"><Icons.FileCheck /> ADMIN CHECKLIST (สถานะเอกสาร)</div>
+                                                <div className="grid grid-cols-3 gap-2 text-[10px] sm:text-[11px] font-bold text-center">
+                                                    <div className={`p-2 rounded border ${modal.data.layout_doc === 'true' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        Layout<br/>{modal.data.layout_doc === 'true' ? '✅ ผ่าน' : '❌ รอตรวจ'}
+                                                    </div>
+                                                    <div className={`p-2 rounded border ${modal.data.wiring_doc === 'true' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        Wiring<br/>{modal.data.wiring_doc === 'true' ? '✅ ผ่าน' : '❌ รอตรวจ'}
+                                                    </div>
+                                                    <div className={`p-2 rounded border ${modal.data.precheck_doc === 'true' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-400 border-slate-200'}`}>
+                                                        Pre-check<br/>{modal.data.precheck_doc === 'true' ? '✅ ผ่าน' : '❌ รอตรวจ'}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* ข้อ 6: แผนที่แบบแปลงลิงก์อัตโนมัติ */}
+                                            {modal.data.map_link && (
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-500 uppercase">Location</span>
+                                                    <div className="map-preview relative mt-1 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200 group">
+                                                        {getMapEmbedUrl(modal.data.map_link) ? (
+                                                            <>
+                                                                <iframe width="100%" height="100%" frameBorder="0" src={getMapEmbedUrl(modal.data.map_link)} loading="lazy"></iframe>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => window.open(modal.data.map_link, '_blank', 'noopener,noreferrer')}
+                                                                    className="absolute bottom-2 right-2 bg-white/95 backdrop-blur border border-slate-300 px-3 py-1.5 rounded-lg font-bold text-xs flex items-center gap-2 text-slate-700 shadow-lg hover:bg-slate-50 transition-all active:scale-95"
+                                                                >
+                                                                    <Icons.MapPin /> เปิดแอป Google Maps
+                                                                </button>
+                                                            </>
+                                                        ) : (
+                                                            <div className="w-full h-full flex items-center justify-center py-8 text-xs font-bold text-slate-400">
+                                                                ไม่สามารถโหลดแผนที่ได้
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {(isAdmin || user?.username === modal.data.created_by) && (
+                                                <div className="flex gap-2 mt-4">
+                                                    <button onClick={() => {
+                                                        // ตั้งค่า State เดิมกลับไปที่ฟอร์มแก้ไข
+                                                        if (modal.data.area && ['กรุงเทพและปริมณฑล', 'เชียงใหม่', 'ภูเก็ต'].includes(modal.data.area)) {
+                                                            setAreaSelection(modal.data.area);
+                                                        } else if (modal.data.area) {
+                                                            setAreaSelection('other');
+                                                        } else {
+                                                            setAreaSelection('กรุงเทพและปริมณฑล');
+                                                        }
+                                                        
+                                                        if (modal.data.job_type) {
+                                                            setJobTypeSelection(modal.data.job_type);
+                                                        } else {
+                                                            setJobTypeSelection('New');
+                                                        }
+
+                                                        setModal({ type: 'booking', data: modal.data });
+                                                    }} className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm bg-slate-50 active:bg-slate-100">แก้ไข</button>
+                                                    
+                                                    {/* ปุ่มลบ (เพิ่มระบบยืนยันรหัสผ่าน) */}
+                                                    <button onClick={() => {
+                                                        setConfirmDialog({
+                                                            msg: 'กรุณากรอกรหัสผ่านของคุณเพื่อยืนยันการลบรายการจองนี้ (ป้องกันการลบโดยไม่ตั้งใจ)',
+                                                            requirePassword: true,
+                                                            onConfirm: async () => {
+                                                                const ok = await apiAction({ action: 'delete_booking', id: modal.data.id });
+                                                                if (ok) { setModal(null); showToast('ลบรายการสำเร็จ', 'success'); }
+                                                            }
+                                                        });
+                                                    }} className="flex-1 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-sm bg-red-50 active:bg-red-100">ลบ</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal คู่มือการใช้งาน */}
+                    {showManual && (
+                        <div className="backdrop z-[200]">
+                            <div className="modal-card p-6">
+                                <button onClick={() => setShowManual(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2">
+                                    <Icons.Book /> คู่มือการใช้งาน SAIS BOOKING
+                                </h3>
+                                <div className="text-sm text-slate-700 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-800 mb-1">1. การเข้าสู่ระบบและการสมัครสมาชิก</h4>
+                                        <p className="text-slate-600 leading-relaxed">ผู้ใช้ต้องเข้าสู่ระบบ (Login) ก่อนจึงจะสามารถจองคิวงานได้ หากยังไม่มีบัญชี สามารถกด "สมัครสมาชิก" และรอให้ Admin อนุมัติสิทธิ์การใช้งานก่อนครับ</p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-800 mb-1">2. วิธีการจองคิวตรวจ</h4>
+                                        <p className="text-slate-600 leading-relaxed">
+                                            • แตะที่ช่องตารางว่างให้ตรงกับ <b>"วันที่"</b> และ <b>"ชื่อผู้ตรวจสอบ"</b> ที่ต้องการ<br/>
+                                            • เลือก <b>ประเภทงาน</b> และ <b>พื้นที่ตรวจ</b><br/>
+                                            • กรอกข้อมูลให้ครบถ้วน โดยเฉพาะ <b>เบอร์โทรศัพท์ (ต้องครบ 10 หลักเสมอ)</b><br/>
+                                            • แนะนำให้วางลิงก์ <b>Google Maps</b> จากแอปแผนที่ เพื่อความแม่นยำในการเดินทาง
+                                        </p>
+                                    </div>
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                        <h4 className="font-bold text-slate-800 mb-1">3. การแก้ไข ลบ และสถานะเอกสาร</h4>
+                                        <p className="text-slate-600 leading-relaxed">หากต้องการแก้ไขข้อมูลหรือยกเลิกคิวงาน ให้คลิกที่คิวงานเดิม ระบบจะมีปุ่ม "แก้ไข" และ "ลบ" โดยการลบจะต้องใส่รหัสผ่านเพื่อยืนยันอีกครั้ง <br/><br/>และสามารถตรวจสอบสถานะเอกสาร <b>(Layout, Wiring, Pre-check)</b> ได้จากกล่อง ADMIN CHECKLIST ในหน้ารายละเอียด</p>
+                                    </div>
+                                    <div className="bg-red-50 p-3 rounded-xl border border-red-100">
+                                        <h4 className="font-bold text-red-800 mb-1">4. เงื่อนไขวันหยุด (HOLIDAY)</h4>
+                                        <p className="text-red-700 leading-relaxed">ช่องสีแดงที่มีคำว่า HOLIDAY หรือ ช่องวันอาทิตย์ คือวันหยุดของระบบ ผู้ใช้งานทั่วไปจะไม่สามารถจองคิวในช่องนี้ได้</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setShowManual(false)} className="w-full mt-4 py-3 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 active:scale-[0.98] transition-all">
+                                    รับทราบ
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Modal ประวัติการจอง */}
+                    {showHistory && (
+                        <div className="backdrop z-[200]">
+                            <div className="modal-card p-6">
+                                <button onClick={() => setShowHistory(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2">ประวัติการจอง</h3>
+                                <div className="text-sm space-y-3 max-h-[60vh] overflow-y-auto pr-2">
+                                    {!user ? (
+                                        <p className="text-center py-4 text-slate-400 font-bold">กรุณาเข้าสู่ระบบเพื่อดูประวัติการจองของคุณ</p>
+                                    ) : (
+                                        db.bookings
+                                            .filter(b => b.inspector_name !== 'SYSTEM_HOLIDAY' && b.created_by)
+                                            .filter(b => isAdmin || b.created_by === user.username)
+                                            .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                            .slice(0, 30)
+                                            .map((h, i) => (
+                                                <div key={i} className="border border-slate-200 pb-2 text-[11px] bg-slate-50 p-3 rounded-xl shadow-sm">
+                                                    <div className="font-bold text-slate-800 text-sm mb-2">{h.site_name || 'ไม่ระบุชื่อโครงการ'}</div>
+                                                    <div className="grid grid-cols-2 gap-1.5 text-slate-600">
+                                                        <div><b>Eq No:</b> {h.equipment_no || '-'}</div>
+                                                        <div><b>Unit:</b> {h.unit_no || '-'}</div>
+                                                        <div><b>วันที่จอง:</b> {h.date ? h.date.split('T')[0] : '-'}</div>
+                                                        <div><b>ผู้ตรวจสอบ:</b> {h.inspector_name || '-'}</div>
+                                                        {isAdmin && <div className="col-span-2 text-blue-600 mt-1"><b>จองโดยผู้ใช้:</b> {h.created_by}</div>}
+                                                    </div>
+                                                </div>
+                                            ))
+                                    )}
+                                    {user && db.bookings.filter(b => b.inspector_name !== 'SYSTEM_HOLIDAY' && (isAdmin || b.created_by === user.username)).length === 0 && (
+                                        <p className="text-center py-4 text-slate-400">ไม่พบประวัติการทำรายการของคุณ</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* แจ้งเตือนทั่วไป */}
+                    {alertMsg && (
+                        <div className="backdrop z-[300]">
+                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop">
+                                <div className="mx-auto w-14 h-14 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4"><Icons.Alert /></div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">แจ้งเตือน</h3>
+                                <p className="text-sm text-slate-600 mb-6">{alertMsg}</p>
+                                <button onClick={() => setAlertMsg(null)} className="w-full py-3 bg-slate-100 text-slate-800 rounded-xl font-bold hover:bg-slate-200">ตกลง</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* แจ้งเตือนยืนยัน */}
+                    {confirmDialog && (
+                        <div className="backdrop z-[300]">
+                            <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop">
+                                <div className="mx-auto w-14 h-14 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-4"><Icons.Alert /></div>
+                                <h3 className="text-lg font-bold text-slate-800 mb-2">ยืนยันการทำรายการ</h3>
+                                <p className="text-sm text-slate-600 mb-4">{confirmDialog.msg}</p>
+                                
+                                {confirmDialog.requirePassword && (
+                                    <input 
+                                        type="password" 
+                                        id="confirm-password-input"
+                                        placeholder="กรอกรหัสผ่านของคุณ" 
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 mb-6 text-sm text-center focus:border-amber-500 outline-none"
+                                    />
+                                )}
+
+                                <div className="flex gap-3">
+                                    <button onClick={() => setConfirmDialog(null)} className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-bold">ยกเลิก</button>
+                                    <button onClick={() => { 
+                                        if (confirmDialog.requirePassword) {
+                                            const pwdInput = document.getElementById('confirm-password-input').value;
+                                            if (pwdInput !== String(user.password)) {
+                                                setAlertMsg('รหัสผ่านไม่ถูกต้อง ลบรายการไม่สำเร็จ');
+                                                return;
+                                            }
+                                        }
+                                        confirmDialog.onConfirm(); 
+                                        setConfirmDialog(null); 
+                                    }} className="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold shadow-md">ยืนยัน</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* ล็อกอิน Modal */}
+                    {showLogin && (
+                        <div className="backdrop z-[250]">
+                            <div className="modal-card p-6">
+                                <button onClick={() => setShowLogin(false)} className="btn-close-modern"><Icons.X /></button>
+                                <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">เข้าสู่ระบบ</h2>
+                                <form onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const fd = new FormData(e.target);
+                                    const u = db.users.find(x => x.username === fd.get('username') && String(x.password) === String(fd.get('password')));
+                                    if (u) { setUser(u); setShowLogin(false); showToast('เข้าสู่ระบบสำเร็จ'); }
+                                    else { setAlertMsg('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); }
+                                }} className="space-y-4">
+                                    <input name="username" required placeholder="Username" className="bg-slate-50" />
+                                    <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
+                                    <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 active:scale-[0.98] transition-all">LOGIN</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>

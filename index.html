@@ -957,26 +957,52 @@
                         </div>
                     )}
 
-                    {/* ล็อกอิน Modal */}
+                                        {/* ล็อกอิน Modal */}
                     {showLogin && (
                         <div className="backdrop z-[250]">
                             <div className="modal-card p-6">
                                 <button onClick={() => setShowLogin(false)} className="btn-close-modern"><Icons.X /></button>
                                 <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">เข้าสู่ระบบ</h2>
-                                <form onSubmit={(e) => {
+                                <form onSubmit={async (e) => {
                                     e.preventDefault();
                                     const fd = new FormData(e.target);
-                                    const u = db.users.find(x => x.username === fd.get('username') && String(x.password) === String(fd.get('password')));
-                                    if (u) { setUser(u); setShowLogin(false); showToast('เข้าสู่ระบบสำเร็จ'); }
-                                    else { setAlertMsg('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง'); }
+                                    setLoading(true); // เปิดโหมดกำลังโหลด
+                                    try {
+                                        // ส่งข้อมูลไปตรวจสอบที่ Code.gs (หลังบ้าน) เพื่อความปลอดภัย
+                                        const res = await fetch(SCRIPT_URL, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                                            body: JSON.stringify({
+                                                action: 'login',
+                                                username: fd.get('username'),
+                                                password: fd.get('password')
+                                            })
+                                        });
+                                        const result = await res.json();
+                                        setLoading(false); // ปิดโหมดกำลังโหลด
+                                        
+                                        if (result.status === 'ok') {
+                                            setUser(result.user); // เก็บข้อมูลผู้ใช้
+                                            setShowLogin(false); // ปิดหน้าต่าง
+                                            showToast('เข้าสู่ระบบสำเร็จ');
+                                        } else {
+                                            setAlertMsg(result.message || 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
+                                        }
+                                    } catch (err) {
+                                        setLoading(false);
+                                        setAlertMsg('การเชื่อมต่อขัดข้อง ไม่สามารถเข้าสู่ระบบได้');
+                                    }
                                 }} className="space-y-4">
                                     <input name="username" required placeholder="Username" className="bg-slate-50" />
                                     <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
-                                    <button className="w-full py-3.5 rounded-xl bg-red-600 text-white font-bold shadow-lg hover:bg-red-700 active:scale-[0.98] transition-all">LOGIN</button>
+                                    <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg transition-all ${loading ? 'bg-slate-400' : 'bg-red-600 hover:bg-red-700 active:scale-[0.98]'}`}>
+                                        {loading ? 'กำลังตรวจสอบข้อมูล...' : 'LOGIN'}
+                                    </button>
                                 </form>
                             </div>
                         </div>
                     )}
+
                 </div>
             );
         };

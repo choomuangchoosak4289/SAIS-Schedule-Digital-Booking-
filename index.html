@@ -96,8 +96,8 @@
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
         
-        // SCRIPT_URL ล่าสุดของคุณ (Production Grade)
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjVquvh_Oud6xG3twbKkJZXdf8JO9TvNJyHitk2IpWfzYr1n4X7AXXGS_abyuATD8z/exec"; 
+        // SCRIPT_URL อัปเดตล่าสุดของคุณ
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz_vF3YW-w4qAvrBlRB0bayL_ypdha5Ah30jr5EMCR-EBUIAQuURiqGgKZXEstrV08/exec"; 
         const ADMIN_USERNAME = "jiraphong2227";
 
         const getLocalDateString = (dateObj) => {
@@ -113,7 +113,7 @@
             
             // ถ้าระบบหลังบ้านแปลงมาให้แล้ว (มีคำว่า output=embed) ให้ใช้ได้เลย
             if (link.includes("output=embed")) {
-                return link.replace("googleusercontent.com/maps.google.com/19", "maps.google.com/maps?q=");
+                return link;
             }
             
             try {
@@ -176,11 +176,15 @@
             // State สำหรับตัวเลือกพื้นที่ตรวจ
             const [areaSelection, setAreaSelection] = useState('กรุงเทพและปริมณฑล');
 
-            // State สำหรับประเภทงานตรวจ (ข้อ 5)
+            // State สำหรับประเภทงานตรวจ
             const [jobTypeSelection, setJobTypeSelection] = useState('New');
 
             // State สำหรับนาฬิกาเรียลไทม์
             const [currentTime, setCurrentTime] = useState(new Date());
+
+            // 📍 State ใหม่สำหรับฟังก์ชัน Live Preview แผนที่
+            const [liveMapUrl, setLiveMapUrl] = useState('');
+            const [isDecodingMap, setIsDecodingMap] = useState(false);
 
             const scrollRef = useRef(null);
 
@@ -256,6 +260,49 @@
                 setToast({ msg, type });
                 setTimeout(() => setToast(null), 3000);
             };
+
+            // 📍 ฟังก์ชันตรวจจับการวางลิงก์และยิงไปแกะรอยที่หลังบ้าน (Live Preview)
+            const handleMapChange = async (val) => {
+                if (!val) { setLiveMapUrl(''); return; }
+
+                // เช็คว่าเป็นพิกัดตรงๆ หรือลิงก์เต็มที่พอจะแกะหน้าเว็บได้เลยไหม
+                let latLng = "";
+                const regexAt = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+                if (val.match(regexAt)) latLng = `${val.match(regexAt)[1]},${val.match(regexAt)[2]}`;
+                const regexDirect = /^(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)$/;
+                if (val.match(regexDirect)) latLng = `${val.match(regexDirect)[1]},${val.match(regexDirect)[2]}`;
+
+                if (latLng) {
+                    setLiveMapUrl(`https://maps.google.com/maps?q=${latLng}&hl=th&z=16&output=embed`);
+                    return;
+                }
+
+                // ถ้าเป็นลิงก์ย่อ ให้ส่งไปหลังบ้านแกะรอย
+                if (val.includes("goo.gl")) {
+                    setIsDecodingMap(true);
+                    try {
+                        const res = await fetch(SCRIPT_URL, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                            body: JSON.stringify({ action: 'preview_map', link: val })
+                        });
+                        const data = await res.json();
+                        if (data.status === 'ok') setLiveMapUrl(data.embedUrl);
+                    } catch (e) { console.error(e); }
+                    setIsDecodingMap(false);
+                } else {
+                    setLiveMapUrl(`https://maps.google.com/maps?q=${encodeURIComponent(val)}&hl=th&z=16&output=embed`);
+                }
+            };
+
+            // โหลดแผนที่โชว์ทันทีถ้าฟอร์มแก้ไขมีลิงก์อยู่แล้ว
+            useEffect(() => {
+                if (modal && modal.type === 'booking') {
+                    handleMapChange(modal.data.map_link || '');
+                } else {
+                    setLiveMapUrl(''); // ล้างค่าแผนที่เมื่อปิด Modal
+                }
+            }, [modal]);
             const changePeriod = (dir) => {
                 let newDate = new Date(currentDate);
                 if (dir === 'next') {
@@ -386,6 +433,7 @@
                     setModal(null);
                     setAreaSelection('กรุงเทพและปริมณฑล');
                     setJobTypeSelection('New');
+                    setLiveMapUrl(''); // ล้างค่าแผนที่หลังบันทึกเสร็จ
                     showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกการจองสำเร็จ!', 'success');
                 }
             };
@@ -663,10 +711,36 @@
                                                     <input name="unit_no" defaultValue={modal.data.unit_no} required placeholder="A1" />
                                                 </div>
                                             </div>
-                                            <div>
+
+                                            {/* ส่วนของ Google Map Live Preview */}
+                                            <div className="col-span-2">
                                                 <label className="text-xs font-bold text-slate-500">Google Map Link</label>
-                                                <input name="map_link" defaultValue={modal.data.map_link} placeholder="วางลิงก์ Google Map ที่นี่" />
+                                                <input 
+                                                    name="map_link" 
+                                                    defaultValue={modal.data.map_link} 
+                                                    placeholder="วางลิงก์ Google Map หรือพิกัด ที่นี่..." 
+                                                    onChange={(e) => {
+                                                        // หน่วงเวลา 800ms หลังจากวางลิงก์เสร็จ เพื่อดึงข้อมูลแผนที่ (กันยิงรัว)
+                                                        if (window.mapTimeout) clearTimeout(window.mapTimeout);
+                                                        window.mapTimeout = setTimeout(() => handleMapChange(e.target.value), 800);
+                                                    }}
+                                                    className="bg-slate-50"
+                                                />
+                                                {/* กล่องแสดงแผนที่ Preview ทันทีตอนกรอก */}
+                                                {(liveMapUrl || isDecodingMap) && (
+                                                    <div className="map-preview relative mt-2 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200">
+                                                        {isDecodingMap ? (
+                                                            <div className="w-full h-full flex flex-col items-center justify-center text-xs font-bold text-blue-600 gap-2 bg-blue-50/50">
+                                                                <svg className="animate-spin h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                                                <span>กำลังเชื่อมต่อกับแผนที่...</span>
+                                                            </div>
+                                                        ) : (
+                                                            <iframe width="100%" height="100%" frameBorder="0" src={liveMapUrl} loading="lazy"></iframe>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
+
                                             <div className="grid grid-cols-2 gap-2">
                                                 <div>
                                                     <label className="text-xs font-bold text-slate-500">Foreman</label>
@@ -809,7 +883,7 @@
                                                         setModal({ type: 'booking', data: modal.data });
                                                     }} className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm bg-slate-50 active:bg-slate-100">แก้ไข</button>
                                                     
-                                                    {/* ปุ่มลบ (ไม่ต้องใช้รหัสผ่านแล้ว กดยืนยันปกติ) */}
+                                                    {/* ปุ่มยกเลิกคิว (ไม่ต้องใช้รหัสผ่านแล้ว กดยืนยันปกติ) */}
                                                     <button onClick={() => {
                                                         setConfirmDialog({
                                                             msg: 'คุณแน่ใจหรือไม่ที่จะยกเลิกคิวงานนี้? (สามารถตรวจสอบประวัติย้อนหลังได้โดย Admin)',
@@ -847,7 +921,7 @@
                                             • แตะที่ช่องตารางว่างให้ตรงกับ <b>"วันที่"</b> และ <b>"ชื่อผู้ตรวจสอบ"</b> ที่ต้องการ<br/>
                                             • เลือก <b>ประเภทงาน</b> และ <b>พื้นที่ตรวจ</b><br/>
                                             • กรอกข้อมูลให้ครบถ้วน โดยเฉพาะ <b>เบอร์โทรศัพท์ (ต้องครบ 10 หลักเสมอ)</b><br/>
-                                            • แนะนำให้วางลิงก์ <b>Google Maps</b> จากแอปแผนที่ เพื่อความแม่นยำในการเดินทาง
+                                            • ระบบจะแสดงหมุด <b>Google Maps</b> บนแผนที่ทันทีที่คุณวางลิงก์ เพื่อยืนยันพิกัดก่อนบันทึก
                                         </p>
                                     </div>
                                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -910,7 +984,7 @@
                         </div>
                     )}
 
-                    {/* แจ้งเตือนยืนยัน (ยกเลิกระบบตรวจสอบรหัสผ่าน) */}
+                    {/* แจ้งเตือนยืนยัน */}
                     {confirmDialog && (
                         <div className="backdrop z-[300]">
                             <div className="bg-white w-[85%] max-w-[320px] rounded-3xl p-6 text-center shadow-2xl animate-pop">
@@ -929,7 +1003,7 @@
                         </div>
                     )}
 
-                    {/* ล็อกอิน Modal (ระบบใหม่ ยิง API ไปเช็คหลังบ้าน 100%) */}
+                    {/* ล็อกอิน Modal */}
                     {showLogin && (
                         <div className="backdrop z-[250]">
                             <div className="modal-card p-6">

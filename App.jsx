@@ -17,18 +17,30 @@ const Icons = {
     Home: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
     Shield: () => <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
     Search: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-    WifiOff: () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>,
-    Download: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    Eye: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>,
+    EyeOff: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>,
+    Download: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    CalendarX: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line><line x1="10" y1="14" x2="14" y2="18"></line><line x1="14" y1="14" x2="10" y2="18"></line></svg>,
+    MenuIcon: () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
 };
 
 const App = () => {
+    const SCRIPT_URL = window.SAIS_CONFIG.SCRIPT_URL;
+    const ADMIN_USERNAME = window.SAIS_CONFIG.ADMIN_USERNAME;
+    const utils = window.SAIS_UTILS;
+
     const [db, setDb] = useState({ bookings: [], users: [], history: [], inspectors: [] });
-    const [user, setUser] = useState(null);
-    const [isOffline, setIsOffline] = useState(!navigator.onLine);
+    const [user, setUser] = useState(() => {
+        try { const saved = localStorage.getItem('sais_user'); return saved ? JSON.parse(saved) : null; } catch(e) { return null; }
+    });
+    
     const [currentView, setCurrentView] = useState('calendar');
     const [loading, setLoading] = useState(false);
     const [modal, setModal] = useState(null); 
     const [showLogin, setShowLogin] = useState(false);
+    const [isRegisterMode, setIsRegisterMode] = useState(false); 
+    const [showPassword, setShowPassword] = useState(false); 
+    
     const [showManual, setShowManual] = useState(false);
     const [alertMsg, setAlertMsg] = useState(null);
     const [confirmDialog, setConfirmDialog] = useState(null);
@@ -42,102 +54,51 @@ const App = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [filterArea, setFilterArea] = useState('All');
     const [filterJobType, setFilterJobType] = useState('All');
+    
+    // 📍 ระบบ Admin แบบ Dashboard Menu
+    const [adminTab, setAdminTab] = useState('menu'); // menu | bookings | users | holidays
     const [selectedDocs, setSelectedDocs] = useState([]);
 
     const [currentTime, setCurrentTime] = useState(new Date());
     const [liveMapUrl, setLiveMapUrl] = useState('');
-    const [isDecodingMap, setIsDecodingMap] = useState(false);
     const scrollRef = useRef(null);
 
-    const isAdmin = useMemo(() => user?.username === window.SAIS_CONFIG.ADMIN_USERNAME || user?.role === 'admin', [user]);
+    const isAdmin = useMemo(() => user?.username === ADMIN_USERNAME || user?.role === 'admin', [user]);
 
     useEffect(() => {
-        const initLocalData = async () => {
-            const cachedUser = localStorage.getItem('sais_user');
-            if (cachedUser) setUser(JSON.parse(cachedUser));
-            const cachedDb = await window.DB_CACHE.getItem('db');
-            if (cachedDb && typeof cachedDb === 'object') setDb(cachedDb);
-        };
-        initLocalData();
-    }, []);
+        if (user) localStorage.setItem('sais_user', JSON.stringify(user));
+        else localStorage.removeItem('sais_user');
+    }, [user]);
 
     useEffect(() => {
-        const processOfflineQueue = async () => {
-            const queue = await window.DB_QUEUE.getItem('queue') || [];
-            if (queue.length > 0) {
-                showToast(`กำลังซิงค์ข้อมูล... (${queue.length})`, 'alert');
-                let newQueue = [...queue];
-                for (let i = 0; i < queue.length; i++) {
-                    try {
-                        const res = await fetch(window.SAIS_CONFIG.SCRIPT_URL, { method: 'POST', body: JSON.stringify(queue[i]) });
-                        if (res.ok) newQueue.shift();
-                    } catch (e) { break; }
-                }
-                await window.DB_QUEUE.setItem('queue', newQueue);
-                fetchData();
-                if (newQueue.length === 0) showToast('ซิงค์สำเร็จ!', 'success');
-            }
-        };
-
-        const handleOnline = () => { setIsOffline(false); showToast('กลับมาออนไลน์แล้ว', 'success'); processOfflineQueue(); };
-        const handleOffline = () => { setIsOffline(true); showToast('ออฟไลน์โหมด', 'alert'); };
-        
-        window.addEventListener('online', handleOnline);
-        window.addEventListener('offline', handleOffline);
-        return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
-    }, []);
-
-    useEffect(() => {
-        if (!isOffline) fetchData();
+        fetchData();
         const timer = setInterval(() => {
-            if (!isOffline && !modal && !showLogin && !showManual && !confirmDialog && !alertMsg) fetchData();
+            if (!modal && !showLogin && !showManual && !confirmDialog && !alertMsg) fetchData();
         }, 180000); 
         return () => clearInterval(timer);
-    }, [isOffline, modal, showLogin, showManual, confirmDialog, alertMsg]);
+    }, [modal, showLogin, showManual, confirmDialog, alertMsg]);
 
     const fetchData = async () => {
-        if (!window.SAIS_CONFIG.SCRIPT_URL || isOffline) return;
+        if (!SCRIPT_URL) return;
         try {
-            const res = await fetch(window.SAIS_CONFIG.SCRIPT_URL);
+            const res = await fetch(SCRIPT_URL);
             if (!res.ok) throw new Error('Network error');
             const data = await res.json();
-            if (data) {
-                const newData = { bookings: data.bookings || [], users: data.users || [], history: data.history || [], inspectors: data.inspectors || [] };
-                setDb(newData);
-                await window.DB_CACHE.setItem('db', newData);
-            }
+            if (data) setDb({ bookings: data.bookings || [], users: data.users || [], history: data.history || [], inspectors: data.inspectors || [] });
         } catch (e) { console.error("Fetch Error:", e); }
     };
 
     const showToast = (msg, type = 'success') => { setToast({ msg, type }); setTimeout(() => setToast(null), 3000); };
 
-    const apiAction = async (payload, optimisticBookingData = null) => {
-        let previousBookings = [...db.bookings];
-        if (optimisticBookingData) {
-            if (payload.action === 'create_booking') setDb(prev => ({ ...prev, bookings: [...prev.bookings, optimisticBookingData] }));
-            else if (payload.action === 'update_booking') setDb(prev => ({ ...prev, bookings: prev.bookings.map(b => b.id === payload.id ? optimisticBookingData : b) }));
-            else if (payload.action === 'delete_booking') setDb(prev => ({ ...prev, bookings: prev.bookings.filter(b => b.id !== payload.id) }));
-        }
-
-        if (isOffline) {
-            const queue = await window.DB_QUEUE.getItem('queue') || [];
-            queue.push(payload);
-            await window.DB_QUEUE.setItem('queue', queue);
-            showToast('บันทึกออฟไลน์แล้ว', 'alert');
-            return true;
-        }
-
+    const apiAction = async (payload) => {
         setLoading(true);
         try {
-            const res = await fetch(window.SAIS_CONFIG.SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+            const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
             const result = await res.json();
             setLoading(false);
-            
             if (result.status === 'ok') { await fetchData(); return true; } 
-            else { setDb(prev => ({ ...prev, bookings: previousBookings })); setAlertMsg('ข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ')); return false; }
-        } catch (e) { 
-            setLoading(false); setDb(prev => ({ ...prev, bookings: previousBookings })); setAlertMsg('การเชื่อมต่อขัดข้อง'); return false; 
-        }
+            else { setAlertMsg('เกิดข้อผิดพลาด: ' + (result.message || 'ไม่ทราบสาเหตุ')); return false; }
+        } catch (e) { setLoading(false); setAlertMsg('การเชื่อมต่อขัดข้อง'); return false; }
     };
 
     const handleBatchApprove = async () => {
@@ -150,8 +111,7 @@ const App = () => {
                     const booking = db.bookings.find(b => b.id === id);
                     if(booking) {
                         const payload = { action: 'update_booking', id: id, user: user.username, layout_doc: 'true', wiring_doc: 'true', precheck_doc: 'true' };
-                        const updatedBooking = { ...booking, layout_doc: 'true', wiring_doc: 'true', precheck_doc: 'true' };
-                        const ok = await apiAction(payload, updatedBooking);
+                        const ok = await apiAction(payload);
                         if(ok) successCount++;
                     }
                 }
@@ -161,22 +121,38 @@ const App = () => {
         });
     };
 
+    // 📍 ฟังก์ชันเพิ่มวันหยุด/กิจกรรม (สำหรับ Admin)
+    const handleAddHoliday = async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const payload = {
+            action: 'create_booking',
+            date: fd.get('h_date'),
+            inspector_name: 'SYSTEM_HOLIDAY',
+            job_type: fd.get('h_type'), // 'public_holiday' หรือ 'company_event'
+            site_name: fd.get('h_name'), // ชื่อวันหยุดที่จะโชว์
+            equipment_no: `HLD_${Date.now()}`,
+            user: user.username
+        };
+        const ok = await apiAction(payload);
+        if(ok) {
+            showToast('เพิ่มวันหยุด/กิจกรรมสำเร็จ');
+            e.target.reset();
+        }
+    };
+
     const handleMapChange = async (val) => {
         if (!val) { setLiveMapUrl(''); return; }
-        const parsedUrl = window.SAIS_UTILS.getMapEmbedUrl(val);
+        const parsedUrl = utils.getMapEmbedUrl(val);
         if (parsedUrl) { setLiveMapUrl(parsedUrl); return; }
-        if (isOffline) { setLiveMapUrl(`http://googleusercontent.com/maps.google.com/maps?q=${encodeURIComponent(val)}&hl=th&z=16&output=embed`); return; }
-
         if (String(val).includes("goo.gl")) {
-            setIsDecodingMap(true);
             try {
-                const res = await fetch(window.SAIS_CONFIG.SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'preview_map', link: String(val) }) });
+                const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'preview_map', link: String(val) }) });
                 const data = await res.json();
                 if (data.status === 'ok') setLiveMapUrl(data.embedUrl);
             } catch (e) {}
-            setIsDecodingMap(false);
         } else {
-            setLiveMapUrl(`http://googleusercontent.com/maps.google.com/maps?q=${encodeURIComponent(val)}&hl=th&z=16&output=embed`);
+            setLiveMapUrl(`https://maps.google.com/maps?q=${encodeURIComponent(val)}&hl=th&z=16&output=embed`);
         }
     };
 
@@ -196,9 +172,8 @@ const App = () => {
         }
     };
 
-    const todayLocalString = window.SAIS_UTILS.getLocalDateString(new Date());
+    const todayLocalString = utils.getLocalDateString(new Date());
 
-    // 📍 ระบบป้องกัน WSOD: แปลงเป็น String เสมอ
     const filteredBookings = useMemo(() => {
         return (db.bookings || []).filter(b => {
             const searchStr = String(searchQuery || '').toLowerCase();
@@ -212,6 +187,7 @@ const App = () => {
         });
     }, [db.bookings, searchQuery, filterArea, filterJobType]);
 
+    // 📍 ระบบคำนวณวันหยุดในตาราง (อ่านค่าจากที่ Admin ตั้งไว้)
     const daysInView = useMemo(() => {
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -219,14 +195,24 @@ const App = () => {
         const start = period === 0 ? 1 : 16;
         const end = period === 0 ? 15 : lastDay;
         const days = [];
-
         for (let i = 0; i < 16; i++) {
             const d = start + i;
             if (d <= end) {
                 const date = new Date(year, month, d);
-                const localDateStr = window.SAIS_UTILS.getLocalDateString(date);
-                const isDbHoliday = (db.bookings || []).some(b => b.date && String(b.date).split('T')[0] === localDateStr && String(b.inspector_name) === 'SYSTEM_HOLIDAY');
-                days.push({ full: localDateStr, day: d, weekday: date.toLocaleDateString('en-US', { weekday: 'short' }), isSunday: date.getDay() === 0, isHoliday: isDbHoliday, isToday: localDateStr === todayLocalString, isEmpty: false });
+                const localDateStr = utils.getLocalDateString(date);
+                
+                // หาว่าวันนี้มีเซ็ตเป็นวันหยุดไว้ไหม
+                const holidayRecord = (db.bookings || []).find(b => b.date && String(b.date).split('T')[0] === localDateStr && String(b.inspector_name) === 'SYSTEM_HOLIDAY');
+                
+                days.push({ 
+                    full: localDateStr, day: d, 
+                    weekday: date.toLocaleDateString('en-US', { weekday: 'short' }), 
+                    isSunday: date.getDay() === 0, 
+                    isHoliday: !!holidayRecord || date.getDay() === 0, 
+                    holidayData: holidayRecord || null, // เก็บข้อมูลวันหยุดที่แอดมินตั้ง
+                    isToday: localDateStr === todayLocalString, 
+                    isEmpty: false 
+                });
             } else { days.push({ isEmpty: true }); }
         }
         return days;
@@ -249,8 +235,7 @@ const App = () => {
         const payload = {
             action: modal.data.id ? 'update_booking' : 'create_booking',
             ...data, tel: formattedTel, area: finalArea, job_type: jobTypeSelection, 
-            id: modal.data.id || `temp_${Date.now()}`,
-            inspector_name: modal.data.inspector_name, date: modal.data.date, user: user.username
+            id: modal.data.id, inspector_name: modal.data.inspector_name, date: modal.data.date, user: user.username
         };
 
         if (isAdmin) {
@@ -265,18 +250,16 @@ const App = () => {
             payload.layout_doc = 'false'; payload.wiring_doc = 'false'; payload.precheck_doc = 'false';
         }
 
-        const optimisticData = { ...payload, created_by: user.username, status: 'pending' };
-        const ok = await apiAction(payload, optimisticData);
+        const ok = await apiAction(payload);
         if (ok) {
             setModal(null); setAreaSelection('กรุงเทพและปริมณฑล'); setJobTypeSelection('New'); setLiveMapUrl('');
-            if(!isOffline) showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสำเร็จ!', 'success');
+            showToast(modal.data.id ? 'อัปเดตข้อมูลสำเร็จ!' : 'บันทึกสำเร็จ!', 'success');
         }
     };
 
     return (
         <div className="app-container">
             {toast && <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-full shadow-2xl bg-white flex items-center gap-3 animate-pop font-bold text-sm border ${toast.type === 'alert' ? 'border-amber-400 text-amber-600' : 'border-green-400 text-green-600'}`}>{toast.type === 'success' ? <Icons.Check /> : <Icons.Alert />} {toast.msg}</div>}
-            {isOffline && <div className="offline-badge"><Icons.WifiOff /> ออฟไลน์ (บันทึกได้ ระบบจะซิงค์ภายหลัง)</div>}
 
             <header className={`main-header ${user ? 'bg-slate-800' : 'bg-red-600'}`}>
                 <div className="flex items-center gap-2"><h1 className="text-xl font-bold tracking-wide">SAIS BOOKING</h1></div>
@@ -290,7 +273,7 @@ const App = () => {
             <div className="bottom-nav">
                 <div className={`nav-item ${currentView === 'calendar' ? 'active' : ''}`} onClick={() => setCurrentView('calendar')}><Icons.Home /> ปฏิทินจอง</div>
                 <div className={`nav-item ${currentView === 'my_bookings' ? 'active' : ''}`} onClick={() => { if(!user) setShowLogin(true); else setCurrentView('my_bookings'); }}><Icons.List /> งานของฉัน</div>
-                {isAdmin && <div className={`nav-item ${currentView === 'admin' ? 'active' : ''}`} onClick={() => setCurrentView('admin')}><Icons.Shield /> Admin</div>}
+                {isAdmin && <div className={`nav-item ${currentView === 'admin' ? 'active' : ''}`} onClick={() => { setCurrentView('admin'); setAdminTab('menu'); }}><Icons.Shield /> Admin</div>}
                 {user && <div className="nav-item text-red-500 hover:text-red-600" onClick={() => setConfirmDialog({ msg: 'ต้องการออกจากระบบ?', onConfirm: () => { setUser(null); localStorage.removeItem('sais_user'); setCurrentView('calendar'); showToast('ออกจากระบบแล้ว', 'success'); } })}><Icons.LogOut /> ออกระบบ</div>}
             </div>
 
@@ -325,45 +308,70 @@ const App = () => {
                                 </div>
                             ))}
 
-                            {daysInView.map((d, index) => (
-                                <React.Fragment key={index}>
-                                    <div className={`sticky-left ${d.isSunday ? 'is-sunday-col' : ''} ${d.isToday ? 'is-today-row' : ''}`}>
-                                        {!d.isEmpty && (<><span className="leading-none font-bold text-sm">{d.day}</span><span className="text-[9px] mt-0.5 font-bold uppercase opacity-80">{d.weekday}</span></>)}
-                                    </div>
-                                    {!d.isEmpty && (db.inspectors || []).map((ins, idx) => {
-                                        const isHoliday = d.isHoliday || d.isSunday;
-                                        const task = filteredBookings.find(b => b.date && String(b.date).split('T')[0] === d.full && String(b.inspector_name) === String(ins.name));
-                                        const hasTask = !!task && String(task.inspector_name) !== 'SYSTEM_HOLIDAY';
-                                        let cardTypeClass = 'card-type-default', areaClass = ''; 
-                                        if (hasTask) {
-                                            if (task.job_type === 'temporary power supply') cardTypeClass = 'card-type-temp';
-                                            if (task.job_type === 'builder lift') cardTypeClass = 'card-type-builder';
-                                            areaClass = (task.area && task.area !== 'กรุงเทพและปริมณฑล' && task.area !== 'ไม่ระบุ') ? 'area-upcountry' : 'area-bkk';
-                                        }
+                            {daysInView.map((d, index) => {
+                                // 📍 คำนวณสีพื้นหลังของหัวแถบวัน
+                                let headerClass = '';
+                                if (d.isSunday || (d.holidayData && d.holidayData.job_type === 'public_holiday')) {
+                                    headerClass = 'is-sunday-col'; // สีแดง
+                                } else if (d.holidayData && d.holidayData.job_type === 'company_event') {
+                                    headerClass = 'is-company-event-col'; // สีชมพู
+                                }
 
-                                        return (
-                                            <div key={idx} className={`grid-cell cursor-pointer hover:bg-slate-50 ${isHoliday && !hasTask ? 'is-holiday-cell' : ''} ${d.isToday && !(isHoliday && !hasTask) ? 'is-today-row' : ''}`}
-                                                onClick={() => {
-                                                    if (hasTask) { setModal({ type: 'detail', data: task }); } 
-                                                    else {
-                                                        if (isHoliday && !isAdmin) return setAlertMsg('วันหยุดระบบไม่เปิดให้จองคิวครับ');
-                                                        if (!user) return setShowLogin(true);
-                                                        if (d.full < todayLocalString && !isAdmin) return setAlertMsg('ไม่สามารถจองคิวงานย้อนหลังได้ครับ');
-                                                        setModal({ type: 'booking', data: { date: d.full, inspector_name: ins.name } });
-                                                    }
-                                                }}>
-                                                {isHoliday && !hasTask && <div className="holiday-label-new">{d.isSunday ? '' : 'HOLIDAY'}</div>}
-                                                {hasTask && (
-                                                    <div className={`task-content ${cardTypeClass} ${areaClass}`}>
-                                                        <div className="text-line-1">{task.equipment_no} <span className="font-normal opacity-70">/</span> {task.unit_no}</div>
-                                                        <div className="text-line-2">{task.site_name}</div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
+                                return (
+                                    <React.Fragment key={index}>
+                                        <div className={`sticky-left ${headerClass} ${d.isToday ? 'is-today-row' : ''}`}>
+                                            {!d.isEmpty && (<><span className="leading-none font-bold text-sm">{d.day}</span><span className="text-[9px] mt-0.5 font-bold uppercase opacity-80">{d.weekday}</span></>)}
+                                        </div>
+                                        
+                                        {!d.isEmpty && (db.inspectors || []).map((ins, idx) => {
+                                            const task = filteredBookings.find(b => b.date && String(b.date).split('T')[0] === d.full && String(b.inspector_name) === String(ins.name));
+                                            const hasTask = !!task && String(task.inspector_name) !== 'SYSTEM_HOLIDAY';
+                                            
+                                            // 📍 คำนวณสีพื้นหลังของตาราง (ถ้าไม่มีงานแทรก)
+                                            let cellHolidayClass = '';
+                                            if (!hasTask) {
+                                                if (d.isSunday || (d.holidayData && d.holidayData.job_type === 'public_holiday')) cellHolidayClass = 'is-holiday-cell'; // แดง
+                                                else if (d.holidayData && d.holidayData.job_type === 'company_event') cellHolidayClass = 'is-company-event-cell'; // ชมพู
+                                            }
+
+                                            let cardTypeClass = 'card-type-default', areaClass = ''; 
+                                            if (hasTask) {
+                                                if (task.job_type === 'temporary power supply') cardTypeClass = 'card-type-temp';
+                                                if (task.job_type === 'builder lift') cardTypeClass = 'card-type-builder';
+                                                areaClass = (task.area && task.area !== 'กรุงเทพและปริมณฑล' && task.area !== 'ไม่ระบุ') ? 'area-upcountry' : 'area-bkk';
+                                            }
+
+                                            return (
+                                                <div key={idx} className={`grid-cell cursor-pointer hover:bg-slate-50 ${cellHolidayClass} ${d.isToday && !cellHolidayClass ? 'is-today-row' : ''}`}
+                                                    onClick={() => {
+                                                        if (hasTask) { setModal({ type: 'detail', data: task }); } 
+                                                        else {
+                                                            if (d.isHoliday && !isAdmin) return setAlertMsg('วันหยุดระบบไม่เปิดให้จองคิวครับ');
+                                                            if (!user) return setShowLogin(true);
+                                                            if (d.full < todayLocalString && !isAdmin) return setAlertMsg('ไม่สามารถจองคิวงานย้อนหลังได้ครับ');
+                                                            setModal({ type: 'booking', data: { date: d.full, inspector_name: ins.name } });
+                                                        }
+                                                    }}>
+                                                    
+                                                    {/* แสดงชื่อวันหยุด ถ้ามี */}
+                                                    {!hasTask && d.isHoliday && (
+                                                        <div className="holiday-label-new">
+                                                            {d.holidayData ? d.holidayData.site_name : (d.isSunday ? '' : 'HOLIDAY')}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    {hasTask && (
+                                                        <div className={`task-content ${cardTypeClass} ${areaClass}`}>
+                                                            <div className="text-line-1">{task.equipment_no} <span className="font-normal opacity-70">/</span> {task.unit_no}</div>
+                                                            <div className="text-line-2">{task.site_name}</div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </React.Fragment>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -393,41 +401,157 @@ const App = () => {
                 <div className="page-view">
                     <div className="flex justify-between items-end mb-4">
                         <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2"><Icons.Shield /> Admin Dashboard</h2>
-                        <button onClick={() => window.SAIS_UTILS.exportToCSV(db.bookings)} className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm"><Icons.Download /> Export CSV</button>
                     </div>
-                    {selectedDocs.length > 0 && (
-                        <div className="bg-red-50 border border-red-200 p-3 rounded-xl mb-4 flex justify-between items-center animate-pop">
-                            <span className="text-sm font-bold text-red-700">เลือกแล้ว {selectedDocs.length} รายการ</span>
-                            <button onClick={handleBatchApprove} disabled={loading} className="bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-md">อนุมัติเอกสารทั้งหมด</button>
+
+                    {/* 📍 แผงควบคุมหลัก (Dashboard Menu) */}
+                    {adminTab === 'menu' && (
+                        <div className="grid grid-cols-2 gap-4 animate-pop">
+                            <button onClick={() => setAdminTab('bookings')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center"><Icons.List /></div>
+                                <span className="font-bold text-slate-700 text-sm">จัดการคิวงาน</span>
+                            </button>
+                            <button onClick={() => setAdminTab('users')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                <div className="w-12 h-12 rounded-full bg-green-50 text-green-600 flex items-center justify-center"><Icons.User /></div>
+                                <span className="font-bold text-slate-700 text-sm">จัดการสมาชิก</span>
+                            </button>
+                            <button onClick={() => setAdminTab('holidays')} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                <div className="w-12 h-12 rounded-full bg-red-50 text-red-600 flex items-center justify-center"><Icons.CalendarX /></div>
+                                <span className="font-bold text-slate-700 text-sm">ตั้งค่าวันหยุด/กิจกรรม</span>
+                            </button>
+                            <button onClick={() => utils.exportToCSV(db.bookings)} className="p-5 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center gap-3 active:scale-95 transition-all">
+                                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center"><Icons.Download /></div>
+                                <span className="font-bold text-slate-700 text-sm">ดาวน์โหลด Excel</span>
+                            </button>
                         </div>
                     )}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left text-xs text-slate-600 whitespace-nowrap">
-                                <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
-                                    <tr><th className="p-3 text-center">เลือก</th><th className="p-3">วันที่จอง</th><th className="p-3">Eq No.</th><th className="p-3">โครงการ</th><th className="p-3">ผู้จอง</th><th className="p-3 text-center">เอกสาร</th></tr>
-                                </thead>
-                                <tbody>
-                                    {(db.bookings || []).filter(b => String(b.inspector_name) !== 'SYSTEM_HOLIDAY' && String(b.status) !== 'cancelled').sort((a, b) => new Date(b.date) - new Date(a.date)).map((h, i) => {
-                                        const docsOk = String(h.layout_doc) === 'true' && String(h.wiring_doc) === 'true' && String(h.precheck_doc) === 'true';
-                                        return (
-                                            <tr key={i} className={`border-b border-slate-100 ${selectedDocs.includes(h.id) ? 'bg-red-50/50' : 'hover:bg-slate-50'}`}>
-                                                <td className="p-3 text-center">{!docsOk && <input type="checkbox" className="w-4 h-4 accent-red-600" checked={selectedDocs.includes(h.id)} onChange={() => { setSelectedDocs(prev => prev.includes(h.id) ? prev.filter(docId => docId !== h.id) : [...prev, h.id]); }} />}</td>
-                                                <td className="p-3 cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.date ? String(h.date).split('T')[0] : '-'}</td>
-                                                <td className="p-3 font-bold text-slate-800 cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.equipment_no}</td>
-                                                <td className="p-3 truncate max-w-[120px] cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.site_name}</td>
-                                                <td className="p-3 cursor-pointer">{h.created_by}</td>
-                                                <td className="p-3 text-center cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{docsOk ? <span className="text-green-600 font-bold">✅ ครบ</span> : <span className="text-amber-500 font-bold">⏳ รอตรวจ</span>}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+
+                    {/* 📍 ปุ่มย้อนกลับจากเมนูย่อย */}
+                    {adminTab !== 'menu' && (
+                        <button onClick={() => setAdminTab('menu')} className="mb-4 text-xs font-bold text-slate-500 flex items-center gap-1 bg-white px-3 py-1.5 rounded-lg border shadow-sm">
+                            <Icons.ChevronLeft /> ย้อนกลับเมนูหลัก
+                        </button>
+                    )}
+
+                    {/* 📍 แท็บ จัดการคิวงาน */}
+                    {adminTab === 'bookings' && (
+                        <div className="animate-pop">
+                            {selectedDocs.length > 0 && (
+                                <div className="bg-red-50 border border-red-200 p-3 rounded-xl mb-4 flex justify-between items-center">
+                                    <span className="text-sm font-bold text-red-700">เลือกแล้ว {selectedDocs.length} รายการ</span>
+                                    <button onClick={handleBatchApprove} disabled={loading} className="bg-red-600 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow-md">อนุมัติทั้งหมด</button>
+                                </div>
+                            )}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left text-xs text-slate-600 whitespace-nowrap">
+                                        <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                            <tr><th className="p-3 text-center">เลือก</th><th className="p-3">วันที่จอง</th><th className="p-3">Eq No.</th><th className="p-3">โครงการ</th><th className="p-3">ผู้จอง</th><th className="p-3 text-center">เอกสาร</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            {(db.bookings || []).filter(b => String(b.inspector_name) !== 'SYSTEM_HOLIDAY' && String(b.status) !== 'cancelled').sort((a, b) => new Date(b.date) - new Date(a.date)).map((h, i) => {
+                                                const docsOk = String(h.layout_doc) === 'true' && String(h.wiring_doc) === 'true' && String(h.precheck_doc) === 'true';
+                                                return (
+                                                    <tr key={i} className={`border-b border-slate-100 ${selectedDocs.includes(h.id) ? 'bg-red-50/50' : 'hover:bg-slate-50'}`}>
+                                                        <td className="p-3 text-center">{!docsOk && <input type="checkbox" className="w-4 h-4 accent-red-600" checked={selectedDocs.includes(h.id)} onChange={() => { setSelectedDocs(prev => prev.includes(h.id) ? prev.filter(docId => docId !== h.id) : [...prev, h.id]); }} />}</td>
+                                                        <td className="p-3 cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.date ? String(h.date).split('T')[0] : '-'}</td>
+                                                        <td className="p-3 font-bold text-slate-800 cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.equipment_no}</td>
+                                                        <td className="p-3 truncate max-w-[120px] cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{h.site_name}</td>
+                                                        <td className="p-3 cursor-pointer">{h.created_by}</td>
+                                                        <td className="p-3 text-center cursor-pointer" onClick={() => setModal({ type: 'detail', data: h })}>{docsOk ? <span className="text-green-600 font-bold">✅ ครบ</span> : <span className="text-amber-500 font-bold">⏳ รอตรวจ</span>}</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
+
+                    {/* 📍 แท็บ จัดการสมาชิก */}
+                    {adminTab === 'users' && (
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden animate-pop">
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-xs text-slate-600 whitespace-nowrap">
+                                    <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
+                                        <tr><th className="p-3">Username</th><th className="p-3">สิทธิ์</th><th className="p-3 text-center">สถานะ</th><th className="p-3 text-center">จัดการ</th></tr>
+                                    </thead>
+                                    <tbody>
+                                        {(db.users || []).map((u, i) => (
+                                            <tr key={i} className="border-b border-slate-100">
+                                                <td className="p-3 font-bold text-slate-800">{u.username}</td>
+                                                <td className="p-3">{u.role === 'admin' ? 'ผู้ดูแล' : 'พนักงาน'}</td>
+                                                <td className="p-3 text-center">
+                                                    {u.status === 'pending' ? <span className="text-amber-500 font-bold bg-amber-50 px-2 py-1 rounded">รออนุมัติ</span> : 
+                                                     u.status === 'approved' ? <span className="text-green-600 font-bold bg-green-50 px-2 py-1 rounded">ใช้งานได้</span> : 
+                                                     <span className="text-red-600 font-bold bg-red-50 px-2 py-1 rounded">ระงับ</span>}
+                                                </td>
+                                                <td className="p-3 text-center flex justify-center gap-2">
+                                                    {u.status === 'pending' && <button onClick={() => apiAction({action: 'update_user_status', admin_user: user.username, target_user: u.username, new_status: 'approved'})} className="bg-green-500 text-white px-3 py-1 rounded-lg">อนุมัติ</button>}
+                                                    {u.status === 'approved' && <button onClick={() => apiAction({action: 'update_user_status', admin_user: user.username, target_user: u.username, new_status: 'blocked'})} className="bg-red-500 text-white px-3 py-1 rounded-lg">บล็อก</button>}
+                                                    {u.status === 'blocked' && <button onClick={() => apiAction({action: 'update_user_status', admin_user: user.username, target_user: u.username, new_status: 'approved'})} className="bg-slate-500 text-white px-3 py-1 rounded-lg">ปลดบล็อก</button>}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 📍 แท็บ ตั้งค่าวันหยุด/กิจกรรม (ใหม่!) */}
+                    {adminTab === 'holidays' && (
+                        <div className="animate-pop space-y-4">
+                            <form onSubmit={handleAddHoliday} className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <h3 className="font-bold text-slate-800 mb-3 border-b pb-2">➕ เพิ่มวันหยุด / กิจกรรมบริษัท</h3>
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500">วันที่</label>
+                                        <input type="date" name="h_date" required className="bg-slate-50 p-2 rounded-lg border w-full text-sm" />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500">ประเภท</label>
+                                        <select name="h_type" className="bg-slate-50 p-2 rounded-lg border w-full text-sm font-bold">
+                                            <option value="public_holiday">🔴 วันหยุดนักขัตฤกษ์ (สีแดง)</option>
+                                            <option value="company_event">🌸 กิจกรรมบริษัท (สีชมพู)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-bold text-slate-500">ชื่อวันหยุด / กิจกรรม</label>
+                                        <input type="text" name="h_name" required placeholder="เช่น วันสงกรานต์, ตรวจสุขภาพประจำปี" className="bg-slate-50 p-2 rounded-lg border w-full text-sm" />
+                                    </div>
+                                    <button disabled={loading} className="w-full bg-slate-800 text-white py-2 rounded-lg font-bold text-sm">
+                                        {loading ? 'กำลังบันทึก...' : 'บันทึกลงตาราง'}
+                                    </button>
+                                </div>
+                            </form>
+
+                            {/* รายการวันหยุดที่ตั้งไว้แล้ว */}
+                            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200">
+                                <h3 className="font-bold text-slate-800 mb-3 border-b pb-2">รายการที่ตั้งไว้แล้ว (อนาคต)</h3>
+                                <div className="space-y-2">
+                                    {(db.bookings || []).filter(b => b.date && String(b.inspector_name) === 'SYSTEM_HOLIDAY' && new Date(b.date).getTime() >= new Date().getTime() - 86400000).sort((a,b) => new Date(a.date) - new Date(b.date)).map((h, i) => (
+                                        <div key={i} className="flex justify-between items-center bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                            <div>
+                                                <div className="text-xs font-bold text-slate-800">{String(h.date).split('T')[0]}</div>
+                                                <div className="text-[11px] font-bold mt-0.5">
+                                                    {h.job_type === 'company_event' ? <span className="text-pink-600">🌸 {h.site_name}</span> : <span className="text-red-600">🔴 {h.site_name}</span>}
+                                                </div>
+                                            </div>
+                                            <button onClick={() => setConfirmDialog({msg: 'ลบวันหยุด/กิจกรรมนี้?', onConfirm: () => apiAction({action: 'delete_booking', id: h.id, user: user.username})})} className="bg-white border border-red-200 text-red-500 p-1.5 rounded shadow-sm">
+                                                <Icons.X />
+                                            </button>
+                                        </div>
+                                    ))}
+                                    {(db.bookings || []).filter(b => String(b.inspector_name) === 'SYSTEM_HOLIDAY').length === 0 && <div className="text-xs text-slate-400 text-center py-4">ไม่มีรายการ</div>}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
+            {/* ส่วน Modal จองคิวและแสดงรายละเอียด */}
             {modal && (
                 <div className="backdrop z-[150]">
                     <div className="modal-card">
@@ -437,6 +561,7 @@ const App = () => {
                                 <h3 className="text-xl font-bold text-slate-900">{modal.type === 'booking' ? 'จองคิวตรวจ' : 'รายละเอียด'}</h3>
                                 <div className="text-xs text-red-600 font-bold uppercase mt-1">{modal.data.inspector_name} • {modal.data.date ? String(modal.data.date).split('T')[0] : ''}</div>
                             </div>
+                            
                             {modal.type === 'booking' ? (
                                 <form onSubmit={handleBookingSubmit} className="space-y-3">
                                     <div className="grid grid-cols-2 gap-2">
@@ -462,9 +587,9 @@ const App = () => {
                                     <div className="col-span-2">
                                         <label className="text-xs font-bold text-slate-500">Google map</label>
                                         <input name="map_link" defaultValue={modal.data.map_link} placeholder="ใส่ชื่อหรือวางพิกัด" onChange={(e) => { if (window.mapTimeout) clearTimeout(window.mapTimeout); window.mapTimeout = setTimeout(() => handleMapChange(e.target.value), 800); }} className="bg-slate-50" />
-                                        {(liveMapUrl || isDecodingMap) && (
+                                        {(liveMapUrl) && (
                                             <div className="map-preview relative mt-2 bg-slate-100 rounded-xl overflow-hidden border border-slate-200">
-                                                {isDecodingMap ? <div className="w-full h-full flex items-center justify-center text-xs font-bold text-blue-600">กำลังเชื่อมต่อ...</div> : <iframe width="100%" height="100%" frameBorder="0" src={liveMapUrl} loading="lazy"></iframe>}
+                                                <iframe width="100%" height="100%" frameBorder="0" src={liveMapUrl} loading="lazy"></iframe>
                                             </div>
                                         )}
                                     </div>
@@ -484,10 +609,7 @@ const App = () => {
                                             </div>
                                         </div>
                                     )}
-
-                                    <button disabled={loading} className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all ${loading ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-red-600 text-white active:bg-red-700'}`}>
-                                        {loading ? 'กำลังบันทึกข้อมูล...' : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')}
-                                    </button>
+                                    <button disabled={loading} className={`w-full py-3 mt-4 rounded-xl font-bold text-sm shadow-md transition-all ${loading ? 'bg-slate-400' : 'bg-red-600 text-white'}`}>{loading ? 'กำลังบันทึกข้อมูล...' : (modal.data.id ? 'อัปเดตข้อมูล' : 'ยืนยันการจอง')}</button>
                                 </form>
                             ) : (
                                 <div className="space-y-4">
@@ -497,7 +619,25 @@ const App = () => {
                                         <div><span className="text-xs text-slate-400 block font-bold">Unit</span><b>{modal.data.unit_no || '-'}</b></div>
                                         <div><span className="text-xs text-slate-400 block font-bold">Foreman</span><b>{modal.data.foreman || '-'}</b></div>
                                         <div><span className="text-xs text-slate-400 block font-bold">Tel</span>{modal.data.tel ? <a href={`tel:${String(modal.data.tel).padStart(10, '0')}`} className="text-blue-600 font-bold">{String(modal.data.tel).padStart(10, '0')}</a> : <b>-</b>}</div>
+                                        
+                                        {/* นำแผนที่และหมายเหตุกลับมาในหน้า Detail */}
+                                        {modal.data.notes && (
+                                            <div className="col-span-2 mt-2 pt-3 border-t border-slate-200">
+                                                <span className="text-xs text-slate-400 block font-bold flex items-center gap-1"><Icons.MessageSquare /> หมายเหตุ</span>
+                                                <p className="text-slate-700 mt-1 whitespace-pre-wrap text-sm leading-relaxed">{modal.data.notes}</p>
+                                            </div>
+                                        )}
                                     </div>
+
+                                    {modal.data.map_link && utils.getMapEmbedUrl(modal.data.map_link) && (
+                                        <div>
+                                            <span className="text-xs font-bold text-slate-500 uppercase">Location</span>
+                                            <div className="map-preview relative mt-1 bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200 group">
+                                                <iframe width="100%" height="100%" frameBorder="0" src={utils.getMapEmbedUrl(modal.data.map_link)} loading="lazy"></iframe>
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl">
                                         <div className="text-xs font-bold text-slate-500 mb-2">ADMIN CHECKLIST</div>
                                         <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-center">
@@ -511,8 +651,8 @@ const App = () => {
                                             <button onClick={() => { setAreaSelection(modal.data.area || 'กรุงเทพและปริมณฑล'); setJobTypeSelection(modal.data.job_type || 'New'); setModal({ type: 'booking', data: modal.data }); }} className="flex-1 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-sm bg-slate-50">แก้ไข</button>
                                             <button onClick={() => {
                                                 setConfirmDialog({ msg: 'คุณแน่ใจหรือไม่ที่จะยกเลิกคิวงานนี้?', onConfirm: async () => {
-                                                    const ok = await apiAction({ action: 'delete_booking', id: modal.data.id, user: user.username }, { ...modal.data });
-                                                    if (ok) { setModal(null); if(!isOffline) showToast('ยกเลิกรายการสำเร็จ', 'success'); }
+                                                    const ok = await apiAction({ action: 'delete_booking', id: modal.data.id, user: user.username });
+                                                    if (ok) { setModal(null); showToast('ยกเลิกรายการสำเร็จ', 'success'); }
                                                 }});
                                             }} className="flex-1 py-3 rounded-xl border border-red-200 text-red-600 font-bold text-sm bg-red-50">ยกเลิกคิว</button>
                                         </div>
@@ -531,8 +671,8 @@ const App = () => {
                         <h3 className="text-xl font-bold text-slate-900 mb-4 border-b pb-2 flex items-center gap-2"><Icons.Book /> คู่มือการใช้งาน</h3>
                         <div className="text-sm text-slate-700 space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                             <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                                <h4 className="font-bold text-slate-800 mb-1">การใช้งานแบบออฟไลน์</h4>
-                                <p className="text-slate-600 leading-relaxed">กดเมนู "เพิ่มลงในหน้าจอโฮม" เพื่อติดตั้งเว็บเป็นแอปพลิเคชัน สามารถกดจองคิวงานได้แม้ไม่มีอินเทอร์เน็ต ระบบจะซิงค์ให้อัตโนมัติ</p>
+                                <h4 className="font-bold text-slate-800 mb-1">การเพิ่มแอป</h4>
+                                <p className="text-slate-600 leading-relaxed">กดเมนูเพื่อ "เพิ่มลงในหน้าจอโฮม" เพื่อใช้งานเต็มรูปแบบ</p>
                             </div>
                         </div>
                         <button onClick={() => setShowManual(false)} className="w-full mt-4 py-3 bg-slate-800 text-white rounded-xl font-bold">รับทราบ</button>
@@ -568,26 +708,56 @@ const App = () => {
             {showLogin && (
                 <div className="backdrop z-[250]">
                     <div className="modal-card p-6">
-                        <button onClick={() => setShowLogin(false)} className="btn-close-modern"><Icons.X /></button>
-                        <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">เข้าสู่ระบบ</h2>
+                        <button onClick={() => { setShowLogin(false); setIsRegisterMode(false); }} className="btn-close-modern"><Icons.X /></button>
+                        <h2 className="text-2xl font-bold text-slate-800 text-center mb-6 mt-2">{isRegisterMode ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}</h2>
+                        
                         <form onSubmit={async (e) => {
                             e.preventDefault();
-                            if (isOffline) return setAlertMsg('ไม่สามารถเข้าสู่ระบบขณะออฟไลน์ได้');
                             const fd = new FormData(e.target);
-                            setLoading(true);
-                            try {
-                                const res = await fetch(window.SAIS_CONFIG.SCRIPT_URL, { method: 'POST', body: JSON.stringify({ action: 'login', username: fd.get('username'), password: fd.get('password') }) });
+                            
+                            if (isRegisterMode) {
+                                if(fd.get('password') !== fd.get('confirm_password')) return setAlertMsg('รหัสผ่านไม่ตรงกัน');
+                                const payload = { action: 'register', username: fd.get('username'), password: fd.get('password') };
+                                setLoading(true);
+                                const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
+                                const result = await res.json();
+                                setLoading(false);
+                                if (result.status === 'ok') { showToast(result.message); setIsRegisterMode(false); } 
+                                else setAlertMsg(result.message);
+                            } else {
+                                const payload = { action: 'login', username: fd.get('username'), password: fd.get('password') };
+                                setLoading(true);
+                                const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(payload) });
                                 const result = await res.json();
                                 setLoading(false);
                                 if (result.status === 'ok') { setUser(result.user); setShowLogin(false); showToast('เข้าสู่ระบบสำเร็จ'); } 
-                                else setAlertMsg(result.message || 'ชื่อผู้ใช้/รหัสผ่านผิด');
-                            } catch (err) { setLoading(false); setAlertMsg('การเชื่อมต่อขัดข้อง'); }
+                                else setAlertMsg(result.message);
+                            }
                         }} className="space-y-4">
                             <input name="username" required placeholder="Username" className="bg-slate-50" />
-                            <input name="password" type="password" required placeholder="Password" className="bg-slate-50" />
-                            <button disabled={loading || isOffline} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg transition-all ${loading || isOffline ? 'bg-slate-400' : 'bg-red-600 active:scale-95'}`}>
-                                {loading ? 'กำลังตรวจสอบ...' : 'LOGIN'}
+                            
+                            <div className="relative">
+                                <input name="password" type={showPassword ? "text" : "password"} required placeholder="Password" className="bg-slate-50 pr-12" />
+                                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+                                    {showPassword ? <Icons.EyeOff /> : <Icons.Eye />}
+                                </button>
+                            </div>
+
+                            {isRegisterMode && (
+                                <div className="relative">
+                                    <input name="confirm_password" type={showPassword ? "text" : "password"} required placeholder="Confirm Password" className="bg-slate-50 pr-12" />
+                                </div>
+                            )}
+
+                            <button disabled={loading} className={`w-full py-3.5 rounded-xl text-white font-bold shadow-lg transition-all ${loading ? 'bg-slate-400' : 'bg-red-600'}`}>
+                                {loading ? 'กำลังประมวลผล...' : (isRegisterMode ? 'ยืนยันการสมัคร' : 'LOGIN')}
                             </button>
+                            
+                            <div className="text-center mt-4">
+                                <button type="button" onClick={() => setIsRegisterMode(!isRegisterMode)} className="text-sm font-bold text-slate-500 underline">
+                                    {isRegisterMode ? 'มีบัญชีอยู่แล้ว? เข้าสู่ระบบ' : 'ยังไม่มีบัญชี? สมัครสมาชิกที่นี่'}
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
@@ -596,25 +766,5 @@ const App = () => {
     );
 };
 
-// 📍 ระบบ Error Boundary ป้องกันหน้าจอขาว (Fail-Safe)
-class ErrorBoundary extends React.Component {
-    constructor(props) { super(props); this.state = { hasError: false }; }
-    static getDerivedStateFromError(error) { return { hasError: true }; }
-    componentDidCatch(error, errorInfo) { console.error("App Crash:", error, errorInfo); }
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div className="flex flex-col items-center justify-center h-screen bg-slate-50 text-slate-800 p-6 text-center">
-                    <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mb-4"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-                    <h2 className="text-xl font-bold mb-2">ระบบเกิดข้อผิดพลาด</h2>
-                    <p className="text-sm text-slate-500 mb-6">ข้อมูลบางส่วนอาจไม่ตรงกับรูปแบบที่ระบบต้องการ กรุณารีเฟรชหน้าจอใหม่อีกครั้ง</p>
-                    <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold shadow-md">รีเฟรชหน้าจอ</button>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
-}
-
 const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<ErrorBoundary><App /></ErrorBoundary>);
+root.render(<App />);

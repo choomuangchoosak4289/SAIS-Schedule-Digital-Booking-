@@ -3,7 +3,6 @@ if (typeof localforage !== 'undefined') {
     window.DB_CACHE = localforage.createInstance({ name: 'SAIS_DB_CACHE' });
     window.DB_QUEUE = localforage.createInstance({ name: 'SAIS_OFFLINE_QUEUE' });
 } else {
-    // ป้องกันแอปพังหากเน็ตบล็อก Library
     window.DB_CACHE = { getItem: async () => null, setItem: async () => null };
     window.DB_QUEUE = { getItem: async () => [], setItem: async () => null };
 }
@@ -27,8 +26,8 @@ window.SAIS_UTILS = {
             if (matchAt) latLng = `${matchAt[1]},${matchAt[2]}`;
             else if (matchDirect) latLng = `${matchDirect[1]},${matchDirect[2]}`;
             
-            if (latLng) return `http://googleusercontent.com/maps.google.com/maps?q=${latLng}&hl=th&z=16&output=embed`;
-            return `http://googleusercontent.com/maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=16&output=embed`;
+            if (latLng) return `https://maps.google.com/maps?q=${latLng}&hl=th&z=16&output=embed`;
+            return `https://maps.google.com/maps?q=${encodeURIComponent(link)}&hl=th&z=16&output=embed`;
         } catch (e) { return null; }
     },
     exportToCSV: (bookingsData) => {
@@ -38,7 +37,9 @@ window.SAIS_UTILS = {
             b.date ? String(b.date).split('T')[0] : '',
             `"${b.equipment_no || ''}"`, `"${b.unit_no || ''}"`, `"${b.site_name || ''}"`,
             b.area || '', b.job_type || '', b.inspector_name || '',
-            b.layout_doc === 'true' ? 'ผ่าน' : 'รอตรวจ', b.wiring_doc === 'true' ? 'ผ่าน' : 'รอตรวจ', b.precheck_doc === 'true' ? 'ผ่าน' : 'รอตรวจ',
+            String(b.layout_doc) === 'true' ? 'ผ่าน' : 'รอตรวจ', 
+            String(b.wiring_doc) === 'true' ? 'ผ่าน' : 'รอตรวจ', 
+            String(b.precheck_doc) === 'true' ? 'ผ่าน' : 'รอตรวจ',
             b.created_by || '', b.status || ''
         ]);
         let csvContent = "data:text/csv;charset=utf-8,\uFEFF" + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");

@@ -1,7 +1,7 @@
 {
-  "name": "SAIS Booking System",
+  "name": "SAIS BOOKING",
   "short_name": "SAIS",
-  "description": "ระบบจองคิวตรวจและจัดการเอกสาร SAIS",
+  "description": "ระบบจัดการคิวงานตรวจและกิจกรรม SAIS",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f1f5f9",

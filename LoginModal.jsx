@@ -1,12 +1,14 @@
-// LoginModal.jsx
-const LoginModal = ({ 
-    isRegisterMode, setIsRegisterMode, 
-    showPassword, setShowPassword, 
-    setShowLogin, setAlertMsg, 
-    apiAction, showSlideToast, 
-    setLoadingMsg, setUser, SCRIPT_URL, loadingMsg 
-}) => {
-    
+const LoginModal = (props) => {
+    // แตกตัวแปร (Destructuring Props) ให้พร้อมใช้งาน
+    const { 
+        isRegisterMode, setIsRegisterMode, 
+        showPassword, setShowPassword, 
+        setShowLogin, setAlertMsg, 
+        apiAction, showSlideToast, 
+        setLoadingMsg, setUser, 
+        SCRIPT_URL, loadingMsg 
+    } = props;
+
     const handleSubmit = async (e) => {
         e.preventDefault(); 
         const fd = new FormData(e.target);
@@ -27,12 +29,8 @@ const LoginModal = ({
                 setLoadingMsg(null);
                 if (result.status === 'ok') { 
                     setUser(result.user); setShowLogin(false); showSlideToast('เข้าสู่ระบบสำเร็จ', 'success'); 
-                } else {
-                    setAlertMsg(result.message);
-                }
-            } catch (err) { 
-                setLoadingMsg(null); setAlertMsg('การเชื่อมต่อขัดข้อง'); 
-            }
+                } else { setAlertMsg(result.message); }
+            } catch (err) { setLoadingMsg(null); setAlertMsg('การเชื่อมต่อขัดข้อง'); }
         }
     };
 

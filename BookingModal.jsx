@@ -1,11 +1,10 @@
-// BookingModal.jsx
 const BookingModal = (props) => {
-    // แตกตัวแปร (Props)
-    const {
-        modal, setModal, handleBookingSubmit, isAdmin, currentView, adminTab, db, user,
-        productLineSelection, setProductLineSelection, areaSelection, setAreaSelection,
-        jobTypeSelection, setJobTypeSelection, liveMapUrl, handleMapChange,
-        uploadingDoc, handleImageUpload, loadingMsg, handleCancelBooking, utils
+    // แตกตัวแปรทั้งหมดให้ครบ
+    const { 
+        modal, setModal, handleBookingSubmit, isAdmin, currentView, adminTab, db, user, 
+        productLineSelection, setProductLineSelection, areaSelection, setAreaSelection, 
+        jobTypeSelection, setJobTypeSelection, liveMapUrl, handleMapChange, 
+        uploadingDoc, handleImageUpload, loadingMsg, handleCancelBooking, utils, SCRIPT_URL 
     } = props;
 
     return (

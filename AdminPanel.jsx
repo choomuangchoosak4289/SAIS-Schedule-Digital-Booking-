@@ -1,16 +1,13 @@
-// AdminPanel.jsx
 const AdminPanel = (props) => {
-    // แตกตัวแปร (Props) ที่ส่งมาจาก App.jsx เพื่อใช้งานในไฟล์นี้
-    const {
-        db, user, isAdmin, adminTab, setAdminTab, selectedDocs, setSelectedDocs,
-        adminUserFilter, setAdminUserFilter, adminUserSearch, setAdminUserSearch,
-        adminBookingsLimit, setAdminBookingsLimit, leaveStartDate, setLeaveStartDate,
-        leaveEndDate, setLeaveEndDate, leaveInspector, setLeaveInspector, leaveType, setLeaveType,
-        customLeaveType, setCustomLeaveType, eventStartDate, setEventStartDate, eventEndDate, setEventEndDate,
-        holidayStartDate, setHolidayStartDate, holidayEndDate, setHolidayEndDate,
-        leaveDates, eventDates, holidayDates, setAlertMsg, setConfirmDialog, apiAction,
-        setLoadingMsg, fetchData, showSlideToast, SCRIPT_URL, setModal, handleCancelBooking,
-        PRODUCT_COLORS, loadingMsg, utils
+    // แตกตัวแปรทั้งหมดให้ครบ
+    const { 
+        db, user, isAdmin, adminTab, setAdminTab, selectedDocs, setSelectedDocs, adminUserFilter, setAdminUserFilter, 
+        adminUserSearch, setAdminUserSearch, adminBookingsLimit, setAdminBookingsLimit, leaveStartDate, setLeaveStartDate, 
+        leaveEndDate, setLeaveEndDate, leaveInspector, setLeaveInspector, leaveType, setLeaveType, customLeaveType, 
+        setCustomLeaveType, eventStartDate, setEventStartDate, eventEndDate, setEventEndDate, holidayStartDate, 
+        setHolidayStartDate, holidayEndDate, setHolidayEndDate, leaveDates, eventDates, holidayDates, setAlertMsg, 
+        setConfirmDialog, apiAction, setLoadingMsg, fetchData, showSlideToast, SCRIPT_URL, setModal, handleCancelBooking, 
+        PRODUCT_COLORS, loadingMsg, utils 
     } = props;
 
     return (
@@ -260,6 +257,22 @@ const AdminPanel = (props) => {
                             <button disabled={loadingMsg || leaveDates.length === 0} className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${leaveDates.length > 0 ? 'bg-yellow-600 text-white shadow-md' : 'bg-yellow-200 text-yellow-400'}`}>บันทึกวันลา</button>
                         </div>
                     </form>
+                    
+                    {/* 📍 รายการวันลาที่ให้กดลบได้ */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-yellow-200 mt-4">
+                        <h3 className="font-bold text-yellow-800 mb-3 border-b border-yellow-100 pb-2">รายการวันลาที่ตั้งไว้</h3>
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                            {(db.bookings || []).filter(b => b.job_type === 'leave' && String(b.status) !== 'cancelled').map((h, i) => (
+                                <div key={i} className="flex justify-between items-center bg-yellow-50 p-2 rounded-lg border border-yellow-100">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-yellow-800">{h.date ? String(h.date).split('T')[0] : ''} | {h.inspector_name}</div>
+                                        <div className="text-xs text-yellow-700">{h.site_name}</div>
+                                    </div>
+                                    <button onClick={() => { if(window.confirm('ต้องการลบการตั้งค่านี้?')) apiAction({action: 'delete_booking', id: h.id, user: user.username}, 'กำลังลบ...'); }} className="text-red-500 p-1.5 bg-white rounded shadow-sm"><Icons.X /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -313,6 +326,22 @@ const AdminPanel = (props) => {
                             <button disabled={loadingMsg || eventDates.length === 0} className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${eventDates.length > 0 ? 'bg-green-600 text-white shadow-md' : 'bg-green-200 text-green-400'}`}>บันทึกกิจกรรม</button>
                         </div>
                     </form>
+                    
+                    {/* 📍 รายการกิจกรรมที่ให้กดลบได้ */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-green-200 mt-4">
+                        <h3 className="font-bold text-green-800 mb-3 border-b border-green-100 pb-2">รายการกิจกรรมที่ตั้งไว้</h3>
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                            {(db.bookings || []).filter(b => b.job_type === 'company_event' && String(b.status) !== 'cancelled').map((h, i) => (
+                                <div key={i} className="flex justify-between items-center bg-green-50 p-2 rounded-lg border border-green-100">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-green-800">{h.date ? String(h.date).split('T')[0] : ''} | {h.inspector_name === 'SYSTEM_EVENT' ? 'ทุกคน' : h.inspector_name}</div>
+                                        <div className="text-xs text-green-700">{h.site_name}</div>
+                                    </div>
+                                    <button onClick={() => { if(window.confirm('ต้องการลบการตั้งค่านี้?')) apiAction({action: 'delete_booking', id: h.id, user: user.username}, 'กำลังลบ...'); }} className="text-red-500 p-1.5 bg-white rounded shadow-sm"><Icons.X /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
 
@@ -348,6 +377,22 @@ const AdminPanel = (props) => {
                             <button disabled={loadingMsg || holidayDates.length === 0} className={`w-full py-2.5 rounded-lg font-bold text-sm transition-all ${holidayDates.length > 0 ? 'bg-red-600 text-white shadow-md' : 'bg-red-200 text-red-400'}`}>บันทึกวันหยุด</button>
                         </div>
                     </form>
+                    
+                    {/* 📍 รายการวันหยุดที่ให้กดลบได้ */}
+                    <div className="bg-white p-4 rounded-xl shadow-sm border border-red-200 mt-4">
+                        <h3 className="font-bold text-red-800 mb-3 border-b border-red-100 pb-2">รายการวันหยุดที่ตั้งไว้</h3>
+                        <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                            {(db.bookings || []).filter(b => b.job_type === 'public_holiday' && String(b.status) !== 'cancelled').map((h, i) => (
+                                <div key={i} className="flex justify-between items-center bg-red-50 p-2 rounded-lg border border-red-100">
+                                    <div>
+                                        <div className="text-[10px] font-bold text-red-800">{h.date ? String(h.date).split('T')[0] : ''}</div>
+                                        <div className="text-xs text-red-700">{h.site_name}</div>
+                                    </div>
+                                    <button onClick={() => { if(window.confirm('ต้องการลบวันหยุดนี้?')) apiAction({action: 'delete_booking', id: h.id, user: user.username}, 'กำลังลบ...'); }} className="text-red-500 p-1.5 bg-white rounded shadow-sm"><Icons.X /></button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
